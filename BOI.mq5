@@ -8,19 +8,22 @@
 #property version   "1.00"
 
 #property indicator_separate_window
-#property indicator_buffers 1
-#property indicator_plots   1 
+#property indicator_buffers 2
+#property indicator_plots   1
 
 //--- set limit of the indicator values 
-#property indicator_minimum -100 
-#property indicator_maximum 0 
+#property indicator_minimum -50 
+#property indicator_maximum 50 
 
 #property indicator_label1  "WPR" 
-#property indicator_color1  clrGreen
-#property indicator_type1   DRAW_LINE
+#property indicator_color1  Green,Red
+#property indicator_type1   DRAW_COLOR_HISTOGRAM
 #property indicator_width1  1
-#property indicator_minimum -100 
-#property indicator_maximum 0 
+
+// #property indicator_label2  "WPR color" 
+// #property indicator_color2  clrRed
+// #property indicator_type2   DRAW_LINE
+// #property indicator_width2  1
 
 #include "ControlWindow.mqh"
 #include "indicators/WPR.mqh"
@@ -30,71 +33,78 @@
 //+------------------------------------------------------------------+
 //---- buffers
 double wprBuffer_[];
+double wprColorBuffer_[];
 
 
+WPR wpr_;
 CControlWindow controlWindow_;
+
 
 class IndicatorParameters : public IControlWindowListener
 {
 public:
   IndicatorParameters()
-    : wprPreviouslyCalculated_(0)
   {
-    controlWindow_.GetWprParameters(wprEnabled_, wprPeriod_, wprUpperThreshold_, wprLowerThreshold_);
   }
 
   ~IndicatorParameters()
   {
   }
 
-  void OnControlWindowChanged()
+  void OnControlWindowChanged(ControlWindowChange change)
   {
-    double wprPeriod;
-    controlWindow_.GetWprParameters(wprEnabled_, wprPeriod, wprUpperThreshold_, wprLowerThreshold_);
-    if (wprPeriod != wprPeriod_)
-    {
-      wprPeriod_ = wprPeriod;
-      InitializeWpr();
-    }
-  }
+    // ::Print(__FUNCTION__);
+    switch (change)
+      {
+      case CWC_WPR_PERIOD:
+        InitializeWpr();
+        break;
 
-  bool wprEnabled_;
-  double wprPeriod_;
-  double wprUpperThreshold_;
-  double wprLowerThreshold_;
-  int wprPreviouslyCalculated_;
+      case CWC_WPR_THRESHOLD:
+        wpr_.setThresholds(controlWindow_.GetWprUpperThreshold(),
+                           controlWindow_.GetWprLowerThreshold());
+        break;
+
+      default:
+        break;
+      }
+  }
 };
 IndicatorParameters parameters_;
 
-int wprHandle_ = INVALID_HANDLE;
-
 bool InitializeWpr()
-{
-  if (wprHandle_ != INVALID_HANDLE)
   {
-    IndicatorRelease(wprHandle_);
-    wprHandle_ = INVALID_HANDLE;
+  ::Print(__FUNCTION__);
+  wpr_.setThresholds(controlWindow_.GetWprUpperThreshold(),
+                     controlWindow_.GetWprLowerThreshold());
+  int period = controlWindow_.GetWprPeriod();
+  return wpr_.configure(period);
   }
 
-  bool wprEnabled;
-  double wprPeriod;
-  double wprUpperThreshold;
-  double wprLowerThreshold;
-  controlWindow_.GetWprParameters(wprEnabled, wprPeriod, wprUpperThreshold, wprLowerThreshold);
+void RedrawChangedIndicators()
+  {
+  // int counted_bars=Bars(Symbol(),Period());
 
-  int period = wprPeriod;
-  wprHandle_ = iWPR("", Period(), period);
-  
-  parameters_.wprPreviouslyCalculated_ = 0;
-  
-  return wprHandle_ != INVALID_HANDLE;
-}
+  // ::Print(__FUNCTION__," > parameters_.wprPreviouslyCalculated_ = ", parameters_.wprPreviouslyCalculated_);
+  // if (counted_bars > parameters_.wprPreviouslyCalculated_)
+  //   {
+  //   ::Print(__FUNCTION__," > Redrawing WPR!");
+  //   parameters_.wprPreviouslyCalculated_ = 
+  //     CalculateWpr(counted_bars, parameters_.wprPreviouslyCalculated_, 0);
+  //   }
+  }
+
 //+------------------------------------------------------------------+
 //| Custom indicator initialization function                         |
 //+------------------------------------------------------------------+
 int OnInit()
   {
-    SetIndexBuffer(0,wprBuffer_);
+  ::Print(__FUNCTION__);
+    SetIndexBuffer(0,wprBuffer_,INDICATOR_DATA);
+    SetIndexBuffer(1,wprColorBuffer_,INDICATOR_COLOR_INDEX);
+    // PlotIndexSetInteger(0,PLOT_COLOR_INDEXES,2);
+    // PlotIndexSetInteger(0,PLOT_LINE_COLOR,0,Green);
+    // PlotIndexSetInteger(0,PLOT_LINE_COLOR,1,Red);
 
     controlWindow_.SetListener(parameters_);
     controlWindow_.OnInitEvent();
@@ -106,6 +116,7 @@ int OnInit()
  
     if (!InitializeWpr())
     {
+      ::Print(__FUNCTION__," > Failed to create WPR indicator!");
       return INIT_FAILED;
     }
 
@@ -117,6 +128,7 @@ int OnInit()
 //+------------------------------------------------------------------+
 void OnDeinit(const int reason)
   {
+  ::Print(__FUNCTION__);
     controlWindow_.OnDeinitEvent(reason);
   }
 //+------------------------------------------------------------------+
@@ -124,19 +136,15 @@ void OnDeinit(const int reason)
 //+------------------------------------------------------------------+
 void OnTick(void)
   {
-  int counted_bars=Bars(Symbol(),Period());
-
-  if (counted_bars > parameters_.wprPreviouslyCalculated_)
-    {
-    parameters_.wprPreviouslyCalculated_ = 
-      CalculateWpr(counted_bars, parameters_.wprPreviouslyCalculated_, 0);
-    }
+  // ::Print(__FUNCTION__);
+  // RedrawChangedIndicators();
   }
 //+------------------------------------------------------------------+
 //| Timer function                                                   |
 //+------------------------------------------------------------------+
 void OnTimer()
   {
+    // ::Print(__FUNCTION__);
     controlWindow_.OnTimerEvent();
   }
 //+------------------------------------------------------------------+
@@ -147,6 +155,7 @@ void OnChartEvent(const int id,
                   const double &dparam,
                   const string &sparam)
   {
+  // ::Print(__FUNCTION__);
 //---
   controlWindow_.ChartEvent(id,lparam,dparam,sparam);
   }
@@ -157,28 +166,8 @@ int CalculateWpr(const int rates_total,
                  const int prev_calculated,
                  const int begin)
   {
-  bool wprEnabled;
-  double wprPeriod;
-  double wprUpperThreshold;
-  double wprLowerThreshold;
-  controlWindow_.GetWprParameters(wprEnabled, wprPeriod, wprUpperThreshold, wprLowerThreshold);
-   
-  if (rates_total < wprPeriod - 1)
-    return(0);
-    
-  int valuesToCopy; 
-  if(parameters_.wprPreviouslyCalculated_>rates_total || 
-     parameters_.wprPreviouslyCalculated_<=0) 
-    valuesToCopy = rates_total; 
-  else 
-  { 
-    valuesToCopy = rates_total - parameters_.wprPreviouslyCalculated_; 
-  } 
-
-  CopyBuffer(wprHandle_,0,parameters_.wprPreviouslyCalculated_,valuesToCopy,wprBuffer_);
-//--- return value of prev_calculated for next call
-  parameters_.wprPreviouslyCalculated_ = rates_total;
-  return(rates_total);
+  return wpr_.calculateAndCopy(rates_total, prev_calculated, begin, 
+                               wprBuffer_, wprColorBuffer_);
   }
 //+------------------------------------------------------------------+
 //| Custom indicator iteration function                              |
@@ -188,6 +177,7 @@ int OnCalculate(const int rates_total,
                 const int begin,
                 const double &price[])
   {
+  // ::Print(__FUNCTION__);
   int wprTotal = CalculateWpr(rates_total, prev_calculated, begin);
   return(wprTotal);
   }

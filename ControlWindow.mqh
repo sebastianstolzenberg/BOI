@@ -37,8 +37,8 @@ const color THUMB_LOCKED_COLOR = clrLightGray;
 const color THUMB_COLOR_PRESSED = clrSilver;
 
 // window size
-const int WINDOW_WIDTH = 306;
-const int WINDOW_HEIGHT = 150;
+const int WINDOW_WIDTH = 500;//306;
+const int WINDOW_HEIGHT = 300;//150;
 
 // general constants for indicators
 const int INDICATOR_X_OFFSET = 5;
@@ -111,8 +111,13 @@ const int CCI_RANGE_DIGITS = 0;
 const int CCI_RANGE_LEFT_START_VALUE = -95;
 const int CCI_RANGE_RIGHT_START_VALUE = 95;
 
+
 //+------------------------------------------------------------------+
-//|                                                                  |
+enum ControlWindowChange
+{
+  CWC_WPR_PERIOD,
+  CWC_WPR_THRESHOLD
+};
 //+------------------------------------------------------------------+
 class IControlWindowListener
 {
@@ -120,10 +125,8 @@ protected:
   ~IControlWindowListener() {}
 
 public:
-  virtual void OnControlWindowChanged() = 0;
+  virtual void OnControlWindowChanged(ControlWindowChange change) = 0;
 };
-//+------------------------------------------------------------------+
-//|                                                                  |
 //+------------------------------------------------------------------+
 class CControlWindow : public CWndEvents
   {
@@ -162,7 +165,11 @@ public:
    void              OnTimerEvent(void);
 
 
-   void              GetWprParameters(bool& enabled, double& period, double& lowerThreshold, double& upperThreshold);
+   //--- WPR parameters
+   bool              IsWprEnabled();
+   int               GetWprPeriod();
+   double            GetWprLowerThreshold();
+   double            GetWprUpperThreshold();
 
 protected:
    //--- Chart event handler
@@ -179,7 +186,7 @@ private:
    bool              CreateRsiControls();
    bool              CreateCciControls();
 
-   void              NotifyWindowChanged();
+   void              NotifyWindowChanged(ControlWindowChange change);
   };
 //+------------------------------------------------------------------+
 //|                                                                  |
@@ -220,6 +227,8 @@ void CControlWindow::OnDeinitEvent(const int reason)
 void CControlWindow::OnTimerEvent(void)
   {
    CWndEvents::OnTimerEvent();
+   //--- Redraw the chart
+   m_chart.Redraw();
   }
 //+------------------------------------------------------------------+
 //| Event handler                                                    |
@@ -244,25 +253,39 @@ void CControlWindow::OnEvent(const int id,const long &lparam,const double &dpara
          cciRangeSlider_.SliderState(cciEnableCheckbox_.CheckButtonState());
         }
      }
-    if(lparam==wprPeriodSpinEdit_.Id() || lparam==wprRangeSlider_.Id())
-    {
-      ::Print(__FUNCTION__," > id: ",id,"; lparam: ",lparam,"; dparam: ",dparam,"; sparam: ",sparam);
-      // rsiRangeSlider_.SetRightValue(-wprRangeSlider_.GetLeftValue());
-      NotifyWindowChanged();
-    }
-    m_chart.Redraw();
+    // if(id==CHARTEVENT_CUSTOM+ON_END_EDIT && lparam==wprPeriodSpinEdit_.Id())
+    // {
+    //   ::Print(__FUNCTION__," > id: ",id,"; lparam: ",lparam,"; dparam: ",dparam,"; sparam: ",sparam);
+    //   // rsiRangeSlider_.SetRightValue(-wprRangeSlider_.GetLeftValue());
+    //   NotifyWindowChanged(CWC_WPR_PERIOD);
+    // }
+    // if(id==CHARTEVENT_CUSTOM+ON_END_EDIT && lparam==wprRangeSlider_.Id())
+    // {
+    //   ::Print(__FUNCTION__," > id: ",id,"; lparam: ",lparam,"; dparam: ",dparam,"; sparam: ",sparam);
+    //   // rsiRangeSlider_.SetRightValue(-wprRangeSlider_.GetLeftValue());
+    //   NotifyWindowChanged(CWC_WPR_THRESHOLD);
+    // }
   }
 //+------------------------------------------------------------------+
 //| Returns WPR parameters                                           |
 //+------------------------------------------------------------------+
-void CControlWindow::GetWprParameters(
-  bool& enabled, double& period, double& lowerThreshold, double& upperThreshold)
+bool CControlWindow::IsWprEnabled()
 {
-  enabled = wprEnableCheckbox_.CheckButtonState();
-  period = wprPeriodSpinEdit_.GetValue();
-  lowerThreshold = wprRangeSlider_.GetLeftValue();
-  upperThreshold = wprRangeSlider_.GetRightValue();
+  return wprEnableCheckbox_.CheckButtonState();
 }
+int CControlWindow::GetWprPeriod()
+{
+  return (int)wprPeriodSpinEdit_.GetValue();
+}
+double CControlWindow::GetWprLowerThreshold()
+{
+  return wprRangeSlider_.GetLeftValue();
+}
+double CControlWindow::GetWprUpperThreshold()
+{
+  return wprRangeSlider_.GetRightValue();
+}
+
 //+------------------------------------------------------------------+
 //| Creates the trading panel                                        |
 //+------------------------------------------------------------------+
@@ -566,10 +589,10 @@ bool CControlWindow::CreateCciControls()
 //+------------------------------------------------------------------+
 //|                                                                  |
 //+------------------------------------------------------------------+
-void CControlWindow::NotifyWindowChanged()
+void CControlWindow::NotifyWindowChanged(ControlWindowChange change)
   {
   if (CheckPointer(listener_) != POINTER_INVALID)
    {
-   listener_.OnControlWindowChanged();
+   listener_.OnControlWindowChanged(change);
    }
   }
