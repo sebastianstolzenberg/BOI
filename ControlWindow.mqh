@@ -218,6 +218,7 @@ void CControlWindow::OnInitEvent(void)
 //+------------------------------------------------------------------+
 void CControlWindow::OnDeinitEvent(const int reason)
   {
+  ::Print(__FUNCTION__," > reason = ", reason);
 //--- Removing the interface
    CWndEvents::Destroy();
   }
@@ -227,8 +228,8 @@ void CControlWindow::OnDeinitEvent(const int reason)
 void CControlWindow::OnTimerEvent(void)
   {
    CWndEvents::OnTimerEvent();
-   //--- Redraw the chart
-   m_chart.Redraw();
+   // //--- Redraw the chart
+   // m_chart.Redraw();
   }
 //+------------------------------------------------------------------+
 //| Event handler                                                    |
@@ -253,18 +254,18 @@ void CControlWindow::OnEvent(const int id,const long &lparam,const double &dpara
          cciRangeSlider_.SliderState(cciEnableCheckbox_.CheckButtonState());
         }
      }
-    // if(id==CHARTEVENT_CUSTOM+ON_END_EDIT && lparam==wprPeriodSpinEdit_.Id())
-    // {
-    //   ::Print(__FUNCTION__," > id: ",id,"; lparam: ",lparam,"; dparam: ",dparam,"; sparam: ",sparam);
-    //   // rsiRangeSlider_.SetRightValue(-wprRangeSlider_.GetLeftValue());
-    //   NotifyWindowChanged(CWC_WPR_PERIOD);
-    // }
-    // if(id==CHARTEVENT_CUSTOM+ON_END_EDIT && lparam==wprRangeSlider_.Id())
-    // {
-    //   ::Print(__FUNCTION__," > id: ",id,"; lparam: ",lparam,"; dparam: ",dparam,"; sparam: ",sparam);
-    //   // rsiRangeSlider_.SetRightValue(-wprRangeSlider_.GetLeftValue());
-    //   NotifyWindowChanged(CWC_WPR_THRESHOLD);
-    // }
+    if(lparam==wprPeriodSpinEdit_.Id())
+    {
+      ::Print(__FUNCTION__," > id: ",id,"; lparam: ",lparam,"; dparam: ",dparam,"; sparam: ",sparam);
+      // rsiRangeSlider_.SetRightValue(-wprRangeSlider_.GetLeftValue());
+      NotifyWindowChanged(CWC_WPR_PERIOD);
+    }
+    if(lparam==wprRangeSlider_.Id())
+    {
+      ::Print(__FUNCTION__," > id: ",id,"; lparam: ",lparam,"; dparam: ",dparam,"; sparam: ",sparam);
+      // rsiRangeSlider_.SetRightValue(-wprRangeSlider_.GetLeftValue());
+      NotifyWindowChanged(CWC_WPR_THRESHOLD);
+    }
   }
 //+------------------------------------------------------------------+
 //| Returns WPR parameters                                           |

@@ -8,6 +8,7 @@
 #property version   "1.00"
 
 #property indicator_separate_window
+// #property indicator_chart_window
 #property indicator_buffers 2
 #property indicator_plots   1
 
@@ -128,8 +129,8 @@ int OnInit()
 //+------------------------------------------------------------------+
 void OnDeinit(const int reason)
   {
-  ::Print(__FUNCTION__);
-    controlWindow_.OnDeinitEvent(reason);
+  ::Print(__FUNCTION__, " > reason = ", reason);
+  controlWindow_.OnDeinitEvent(reason);
   }
 //+------------------------------------------------------------------+
 //| Expert tick function                                             |
