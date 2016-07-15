@@ -43,7 +43,6 @@ public:
 
   void               setDrawRange(double min, double max);
 
-  int                calculateAndCopy(int start_pos, int count, double& buffer[]);
   double             ShiftValue(double value);
   int                calculateAndCopy(int rates_total, 
                                       int prev_calculated, 
@@ -121,25 +120,6 @@ void WPR::setDrawRange(double min, double max)
     redraw();
   }
 }
-
-int WPR::calculateAndCopy(int start_pos, int count, double& buffer[])
-  { 
-  ::Print(__FUNCTION__, " > start_pos = ", start_pos, ", count = ", count);
-/*  if (rates_total < wprPeriod - 1)
-    return(0);
-    
-  int valuesToCopy; 
-  if(parameters_.wprPreviouslyCalculated_>rates_total || 
-     parameters_.wprPreviouslyCalculated_<=0) 
-    valuesToCopy = rates_total; 
-  else 
-  { 
-    valuesToCopy = rates_total - parameters_.wprPreviouslyCalculated_; 
-  } 
-*/
-  CopyBuffer(handle_,0,start_pos,count,buffer);
-  return (count);
-  }
 
 double WPR::ShiftValue(double value)
 {

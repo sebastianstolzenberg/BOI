@@ -63,7 +63,7 @@ const int INDICATOR_RANGE_SLIDER_HEIGHT = 40;
 const int INDICATOR_RANGE_SLIDER_EDIT_WIDTH = 30;
 const int INDICATOR_RANGE_SLIDER_SLOT_HEIGHT = 4;
 
-// RSI control constants
+// WPR control constants
 const bool WPR_DEFAULT_STATE = true;
 const int WPR_X = INDICATOR_X_OFFSET;
 const int WPR_Y = INDICATOR_Y_OFFSET;

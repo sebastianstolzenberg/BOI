@@ -43,7 +43,6 @@ public:
 
   void               setDrawRange(double min, double max);
 
-  int                calculateAndCopy(int start_pos, int count, double& buffer[]);
   double             ShiftValue(double value);
   int                calculateAndCopy(int rates_total, 
                                       int prev_calculated, 
