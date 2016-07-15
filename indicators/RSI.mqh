@@ -1,5 +1,5 @@
 //+------------------------------------------------------------------+
-//|                                                          WPR.mqh |
+//|                                                          RSI.mqh |
 //|                        Copyright 2016, MetaQuotes Software Corp. |
 //|                                             https://www.mql5.com |
 //+------------------------------------------------------------------+
@@ -8,13 +8,13 @@
 #property version   "1.00"
 
 //+------------------------------------------------------------------+
-const double WPR_MININMUM = -100;
-const double WPR_MAXIMUM = 0;
+const double RSI_MININMUM = 0;
+const double RSI_MAXIMUM = 100;
 
 //+------------------------------------------------------------------+
 //|                                                                  |
 //+------------------------------------------------------------------+
-class WPR
+class RSI
   {
 private:
   int                handle_;
@@ -32,8 +32,8 @@ private:
   int                previouslyCalculated_;
 
 public:
-                     WPR();
-                    ~WPR();
+                     RSI();
+                    ~RSI();
 
   bool               configure(int period);
 
@@ -56,7 +56,7 @@ public:
 //+------------------------------------------------------------------+
 //|                                                                  |
 //+------------------------------------------------------------------+
-WPR::WPR()
+RSI::RSI()
   : handle_(INVALID_HANDLE)
   , enabled_(false)
   , period_(1)
@@ -70,11 +70,11 @@ WPR::WPR()
 //+------------------------------------------------------------------+
 //|                                                                  |
 //+------------------------------------------------------------------+
-WPR::~WPR()
+RSI::~RSI()
   {
   }
 //+------------------------------------------------------------------+
-bool WPR::configure(int period)
+bool RSI::configure(int period)
   {
   ::Print(__FUNCTION__, " > period = ", period);
   
@@ -86,14 +86,14 @@ bool WPR::configure(int period)
     handle_ = INVALID_HANDLE;
     }
 
-  handle_ = iWPR("", Period(), period_);
+  handle_ = iRSI("", Period(), period_, PRICE_CLOSE);
 
   redraw();
 
   return handle_ != INVALID_HANDLE;
   }
 
-void WPR::setColors(color noSignalColor, color signalColor)
+void RSI::setColors(color noSignalColor, color signalColor)
 {
   noSignalColor_ = noSignalColor;
   signalColor_ = signalColor;
@@ -101,7 +101,7 @@ void WPR::setColors(color noSignalColor, color signalColor)
   redraw();
 }
 
-void WPR::setThresholds(double upperThreshold, double lowerThreshold)
+void RSI::setThresholds(double upperThreshold, double lowerThreshold)
   {
   ::Print(__FUNCTION__, 
           " > upperThreshold = ", upperThreshold,
@@ -112,7 +112,7 @@ void WPR::setThresholds(double upperThreshold, double lowerThreshold)
   redraw();
   }
 
-void WPR::setDrawRange(double min, double max)
+void RSI::setDrawRange(double min, double max)
 {
   if (drawRangeMin_ != min || drawRangeMax_ != max)
   {
@@ -122,32 +122,13 @@ void WPR::setDrawRange(double min, double max)
   }
 }
 
-int WPR::calculateAndCopy(int start_pos, int count, double& buffer[])
-  { 
-  ::Print(__FUNCTION__, " > start_pos = ", start_pos, ", count = ", count);
-/*  if (rates_total < wprPeriod - 1)
-    return(0);
-    
-  int valuesToCopy; 
-  if(parameters_.wprPreviouslyCalculated_>rates_total || 
-     parameters_.wprPreviouslyCalculated_<=0) 
-    valuesToCopy = rates_total; 
-  else 
-  { 
-    valuesToCopy = rates_total - parameters_.wprPreviouslyCalculated_; 
-  } 
-*/
-  CopyBuffer(handle_,0,start_pos,count,buffer);
-  return (count);
-  }
-
-double WPR::ShiftValue(double value)
+double RSI::ShiftValue(double value)
 {
-  return (value - WPR_MININMUM) / (WPR_MAXIMUM - WPR_MININMUM) * 
+  return (value - RSI_MININMUM) / (RSI_MAXIMUM - RSI_MININMUM) * 
          (drawRangeMax_-drawRangeMin_) + drawRangeMin_;
 }
 
-int WPR::calculateAndCopy(int rates_total, int prev_calculated, int begin, 
+int RSI::calculateAndCopy(int rates_total, int prev_calculated, int begin, 
                           double& dataBuffer[], double& colorBuffer[])
   {  
   if (rates_total == prev_calculated && prev_calculated == previouslyCalculated_)
@@ -194,7 +175,7 @@ int WPR::calculateAndCopy(int rates_total, int prev_calculated, int begin,
   return rates_total;
   }
 
-void WPR::redraw()
+void RSI::redraw()
 {
   previouslyCalculated_ = 0;
 }

@@ -37,8 +37,8 @@ const color THUMB_LOCKED_COLOR = clrLightGray;
 const color THUMB_COLOR_PRESSED = clrSilver;
 
 // window size
-const int WINDOW_WIDTH = 500;//306;
-const int WINDOW_HEIGHT = 300;//150;
+const int WINDOW_WIDTH = 306;
+const int WINDOW_HEIGHT = 150;
 
 // general constants for indicators
 const int INDICATOR_X_OFFSET = 5;
@@ -116,7 +116,9 @@ const int CCI_RANGE_RIGHT_START_VALUE = 95;
 enum ControlWindowChange
 {
   CWC_WPR_PERIOD,
-  CWC_WPR_THRESHOLD
+  CWC_WPR_THRESHOLD,
+  CWC_RSI_PERIOD,
+  CWC_RSI_THRESHOLD
 };
 //+------------------------------------------------------------------+
 class IControlWindowListener
@@ -170,6 +172,12 @@ public:
    int               GetWprPeriod();
    double            GetWprLowerThreshold();
    double            GetWprUpperThreshold();
+
+   //--- RSI parameters
+   bool              IsRsiEnabled();
+   int               GetRsiPeriod();
+   double            GetRsiLowerThreshold();
+   double            GetRsiUpperThreshold();
 
 protected:
    //--- Chart event handler
@@ -257,14 +265,22 @@ void CControlWindow::OnEvent(const int id,const long &lparam,const double &dpara
     if(lparam==wprPeriodSpinEdit_.Id())
     {
       ::Print(__FUNCTION__," > id: ",id,"; lparam: ",lparam,"; dparam: ",dparam,"; sparam: ",sparam);
-      // rsiRangeSlider_.SetRightValue(-wprRangeSlider_.GetLeftValue());
       NotifyWindowChanged(CWC_WPR_PERIOD);
     }
     if(lparam==wprRangeSlider_.Id())
     {
       ::Print(__FUNCTION__," > id: ",id,"; lparam: ",lparam,"; dparam: ",dparam,"; sparam: ",sparam);
-      // rsiRangeSlider_.SetRightValue(-wprRangeSlider_.GetLeftValue());
       NotifyWindowChanged(CWC_WPR_THRESHOLD);
+    }
+    if(lparam==rsiPeriodSpinEdit_.Id())
+    {
+      ::Print(__FUNCTION__," > id: ",id,"; lparam: ",lparam,"; dparam: ",dparam,"; sparam: ",sparam);
+      NotifyWindowChanged(CWC_RSI_PERIOD);
+    }
+    if(lparam==rsiRangeSlider_.Id())
+    {
+      ::Print(__FUNCTION__," > id: ",id,"; lparam: ",lparam,"; dparam: ",dparam,"; sparam: ",sparam);
+      NotifyWindowChanged(CWC_RSI_THRESHOLD);
     }
   }
 //+------------------------------------------------------------------+
@@ -286,7 +302,25 @@ double CControlWindow::GetWprUpperThreshold()
 {
   return wprRangeSlider_.GetRightValue();
 }
-
+//+------------------------------------------------------------------+
+//| Returns RSI parameters                                           |
+//+------------------------------------------------------------------+
+bool CControlWindow::IsRsiEnabled()
+{
+  return rsiEnableCheckbox_.CheckButtonState();
+}
+int CControlWindow::GetRsiPeriod()
+{
+  return (int)rsiPeriodSpinEdit_.GetValue();
+}
+double CControlWindow::GetRsiLowerThreshold()
+{
+  return rsiRangeSlider_.GetLeftValue();
+}
+double CControlWindow::GetRsiUpperThreshold()
+{
+  return rsiRangeSlider_.GetRightValue();
+}
 //+------------------------------------------------------------------+
 //| Creates the trading panel                                        |
 //+------------------------------------------------------------------+
