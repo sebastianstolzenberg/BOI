@@ -103,7 +103,7 @@ const int CCI_PERIOD_MIN_VALUE = 1;
 const int CCI_PERIOD_MAX_VALUE = 100;
 const int CCI_PERIOD_STEP_VALUE = 1;
 const int CCI_PERIOD_DIGITS = 0;
-const int CCI_PERIOD_START_VALUE = 2;
+const int CCI_PERIOD_START_VALUE = 3;
 const int CCI_RANGE_MIN_VALUE = -100;
 const int CCI_RANGE_MAX_VALUE = 100;
 const int CCI_RANGE_STEP_VALUE = 1;
@@ -118,7 +118,9 @@ enum ControlWindowChange
   CWC_WPR_PERIOD,
   CWC_WPR_THRESHOLD,
   CWC_RSI_PERIOD,
-  CWC_RSI_THRESHOLD
+  CWC_RSI_THRESHOLD,
+  CWC_CCI_PERIOD,
+  CWC_CCI_THRESHOLD
 };
 //+------------------------------------------------------------------+
 class IControlWindowListener
@@ -178,6 +180,12 @@ public:
    int               GetRsiPeriod();
    double            GetRsiLowerThreshold();
    double            GetRsiUpperThreshold();
+
+   //--- CCI parameters
+   bool              IsCciEnabled();
+   int               GetCciPeriod();
+   double            GetCciLowerThreshold();
+   double            GetCciUpperThreshold();
 
 protected:
    //--- Chart event handler
@@ -282,6 +290,16 @@ void CControlWindow::OnEvent(const int id,const long &lparam,const double &dpara
       ::Print(__FUNCTION__," > id: ",id,"; lparam: ",lparam,"; dparam: ",dparam,"; sparam: ",sparam);
       NotifyWindowChanged(CWC_RSI_THRESHOLD);
     }
+    if(lparam==cciPeriodSpinEdit_.Id())
+    {
+      ::Print(__FUNCTION__," > id: ",id,"; lparam: ",lparam,"; dparam: ",dparam,"; sparam: ",sparam);
+      NotifyWindowChanged(CWC_CCI_PERIOD);
+    }
+    if(lparam==cciRangeSlider_.Id())
+    {
+      ::Print(__FUNCTION__," > id: ",id,"; lparam: ",lparam,"; dparam: ",dparam,"; sparam: ",sparam);
+      NotifyWindowChanged(CWC_CCI_THRESHOLD);
+    }
   }
 //+------------------------------------------------------------------+
 //| Returns WPR parameters                                           |
@@ -320,6 +338,25 @@ double CControlWindow::GetRsiLowerThreshold()
 double CControlWindow::GetRsiUpperThreshold()
 {
   return rsiRangeSlider_.GetRightValue();
+}
+//+------------------------------------------------------------------+
+//| Returns CCI parameters                                           |
+//+------------------------------------------------------------------+
+bool CControlWindow::IsCciEnabled()
+{
+  return cciEnableCheckbox_.CheckButtonState();
+}
+int CControlWindow::GetCciPeriod()
+{
+  return (int)cciPeriodSpinEdit_.GetValue();
+}
+double CControlWindow::GetCciLowerThreshold()
+{
+  return cciRangeSlider_.GetLeftValue();
+}
+double CControlWindow::GetCciUpperThreshold()
+{
+  return cciRangeSlider_.GetRightValue();
 }
 //+------------------------------------------------------------------+
 //| Creates the trading panel                                        |

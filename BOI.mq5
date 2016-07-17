@@ -9,8 +9,8 @@
 
 // #property indicator_separate_window
 #property indicator_chart_window
-#property indicator_buffers 4
-#property indicator_plots   2
+#property indicator_buffers 9
+#property indicator_plots   6
 
 //--- set limit of the indicator values 
 // #property indicator_minimum -50 
@@ -18,21 +18,40 @@
 
 #property indicator_label1  "WPR" 
 #property indicator_color1  Green,Red
-#property indicator_type1   DRAW_COLOR_ARROW
+#property indicator_type1   DRAW_COLOR_LINE
 #property indicator_width1  1
 
 #property indicator_label2  "RSI" 
-#property indicator_color2  Blue,Red
-#property indicator_type2   DRAW_COLOR_ARROW
+#property indicator_color2  clrDarkTurquoise,Red
+#property indicator_type2   DRAW_COLOR_LINE
 #property indicator_width2  1
-// #property indicator_label2  "WPR color" 
-// #property indicator_color2  clrRed
-// #property indicator_type2   DRAW_LINE
-// #property indicator_width2  1
+
+#property indicator_label3  "CCI" 
+#property indicator_color3  clrOrchid,Red
+#property indicator_type3   DRAW_COLOR_LINE
+#property indicator_width3  1
+
+#property indicator_label4  "BB-upper" 
+#property indicator_color4  Gray
+#property indicator_type4   DRAW_LINE
+#property indicator_width4  1
+#property indicator_label5  "BB-middle" 
+#property indicator_color5  Gray
+#property indicator_type5   DRAW_LINE
+#property indicator_width5  1
+#property indicator_label6  "BB-lower" 
+#property indicator_color6  Gray
+#property indicator_type6   DRAW_LINE
+#property indicator_width6  1
+
 
 #include "ControlWindow.mqh"
 #include "indicators/WPR.mqh"
 #include "indicators/RSI.mqh"
+#include "indicators/CCI.mqh"
+
+const double INDICATOR_PLOT_HEIGHT = 0.1;
+const double INDICATOR_PLOT_SHIFT = 1;
 
 //+------------------------------------------------------------------+
 //| Global Variables                                                 |
@@ -44,6 +63,13 @@ double wprColorBuffer_[];
 double rsiBuffer_[];
 double rsiColorBuffer_[];
 
+double cciBuffer_[];
+double cciColorBuffer_[];
+
+double bbUpperBuffer_[];
+double bbMiddleBuffer_[];
+double bbLowerBuffer_[];
+
 double chartMin_;
 double chartMax_;
 double wprMin_;
@@ -51,6 +77,7 @@ double wprMax_;
 
 WPR wpr_;
 RSI rsi_;
+CCI cci_;
 CControlWindow controlWindow_;
 
 
@@ -88,6 +115,15 @@ public:
                            controlWindow_.GetRsiLowerThreshold());
         break;
 
+      case CWC_CCI_PERIOD:
+        InitializeCci();
+        break;
+
+      case CWC_CCI_THRESHOLD:
+        cci_.setThresholds(controlWindow_.GetCciUpperThreshold(),
+                           controlWindow_.GetCciLowerThreshold());
+        break;
+
       default:
         break;
       }
@@ -105,7 +141,8 @@ double ChartFixedMaxGet(const long chart_ID=0)
 //--- reset the error value 
    ResetLastError(); 
 //--- receive the property value 
-   if(!ChartGetDouble(chart_ID,CHART_FIXED_MAX,0,result)) 
+   // if(!ChartGetDouble(chart_ID,CHART_FIXED_MAX,0,result)) 
+   if(!ChartGetDouble(chart_ID,CHART_PRICE_MAX,0,result)) 
      { 
       //--- display the error message in Experts journal 
       Print(__FUNCTION__+", Error Code = ",GetLastError()); 
@@ -124,7 +161,8 @@ double ChartFixedMinGet(const long chart_ID=0)
 //--- reset the error value 
    ResetLastError(); 
 //--- receive the property value 
-   if(!ChartGetDouble(chart_ID,CHART_FIXED_MIN,0,result)) 
+   // if(!ChartGetDouble(chart_ID,CHART_FIXED_MIN,0,result)) 
+   if(!ChartGetDouble(chart_ID,CHART_PRICE_MIN,0,result)) 
      { 
       //--- display the error message in Experts journal 
       Print(__FUNCTION__+", Error Code = ",GetLastError()); 
@@ -151,6 +189,15 @@ bool InitializeRsi()
   return rsi_.configure(period);
   }
 
+bool InitializeCci()
+  {
+  ::Print(__FUNCTION__);
+  cci_.setThresholds(controlWindow_.GetCciUpperThreshold(),
+                     controlWindow_.GetCciLowerThreshold());
+  int period = controlWindow_.GetCciPeriod();
+  return cci_.configure(period);
+  }
+
 void RedrawChangedIndicators()
   {
   // int counted_bars=Bars(Symbol(),Period());
@@ -174,7 +221,12 @@ int OnInit()
     SetIndexBuffer(1,wprColorBuffer_,INDICATOR_COLOR_INDEX);
     SetIndexBuffer(2,rsiBuffer_,INDICATOR_DATA);
     SetIndexBuffer(3,rsiColorBuffer_,INDICATOR_COLOR_INDEX);
-
+    SetIndexBuffer(4,cciBuffer_,INDICATOR_DATA);
+    SetIndexBuffer(5,cciColorBuffer_,INDICATOR_COLOR_INDEX);
+    SetIndexBuffer(6,bbUpperBuffer_,INDICATOR_DATA);
+    SetIndexBuffer(7,bbMiddleBuffer_,INDICATOR_DATA);
+    SetIndexBuffer(8,bbLowerBuffer_,INDICATOR_DATA);
+    
     controlWindow_.SetListener(parameters_);
     controlWindow_.OnInitEvent();
     if (!controlWindow_.CreateTradePanel())
@@ -192,6 +244,12 @@ int OnInit()
     if (!InitializeRsi())
     {
       ::Print(__FUNCTION__," > Failed to create RSI indicator!");
+      return INIT_FAILED;
+    }
+ 
+    if (!InitializeCci())
+    {
+      ::Print(__FUNCTION__," > Failed to create CCI indicator!");
       return INIT_FAILED;
     }
  
@@ -237,14 +295,25 @@ void OnChartEvent(const int id,
     {
     double chartMin = ChartFixedMinGet();
     double chartMax = ChartFixedMaxGet();
+    double indicatorHeight = (chartMax - chartMin) * 
+                             INDICATOR_PLOT_HEIGHT;
+    double indicatorShift = indicatorHeight * INDICATOR_PLOT_SHIFT;
 
+    ::Print(__FUNCTION__," > chartMin = ", chartMin,
+                          ", chartMax = ", chartMax,
+                          ", indicatorHeight = ", indicatorHeight,
+                          ", indicatorShift = ", indicatorShift);
     double wprMin = chartMin;
-    double wprMax = (chartMax - chartMin) * 0.1 + wprMin;
+    double wprMax = wprMin + indicatorHeight;
     wpr_.setDrawRange(wprMin, wprMax);
 
-    double rsiMin = wprMax;
-    double rsiMax = (chartMax - chartMin) * 0.1 + rsiMin;
+    double rsiMin = wprMin + indicatorShift;
+    double rsiMax = rsiMin + indicatorHeight;
     rsi_.setDrawRange(rsiMin, rsiMax);
+
+    double cciMin = rsiMin + indicatorShift;
+    double cciMax = cciMin + indicatorHeight;
+    cci_.setDrawRange(cciMin, cciMax);
     }
   }
 //+------------------------------------------------------------------+
@@ -262,7 +331,11 @@ int OnCalculate(const int rates_total,
   int rsiTotal = rsi_.calculateAndCopy(rates_total, prev_calculated, 
                           begin, rsiBuffer_, rsiColorBuffer_);
 
-  return (wprTotal>rsiTotal ? rsiTotal : wprTotal);
+  int cciTotal = cci_.calculateAndCopy(rates_total, prev_calculated, 
+                          begin, cciBuffer_, cciColorBuffer_);
+
+
+  return MathMin(wprTotal, MathMin(rsiTotal, cciTotal));
   }
 
 //+------------------------------------------------------------------+
