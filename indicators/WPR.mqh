@@ -51,6 +51,7 @@ public:
                                       double& colorBuffer[]);
 
   void               redraw();
+  int                getPreviouslyCalculated() const;
   };
 //+------------------------------------------------------------------+
 //|                                                                  |
@@ -162,8 +163,10 @@ int WPR::calculateAndCopy(int rates_total, int prev_calculated, int begin,
   for (int i = prev_calculated; i < prev_calculated + valuesToCopy; ++i)
     {
     // color
-    if (dataBuffer[i] < lowerThreshold_ || dataBuffer[i] > upperThreshold_)
+    if (dataBuffer[i] < lowerThreshold_)
       colorBuffer[i] = 1;
+    else if (dataBuffer[i] > upperThreshold_)
+      colorBuffer[i] = 2;
     else
       colorBuffer[i] = 0;
     // shift
@@ -177,4 +180,9 @@ int WPR::calculateAndCopy(int rates_total, int prev_calculated, int begin,
 void WPR::redraw()
 {
   previouslyCalculated_ = 0;
+}
+
+int WPR::getPreviouslyCalculated()const
+{
+  return previouslyCalculated_;
 }

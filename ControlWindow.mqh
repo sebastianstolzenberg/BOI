@@ -38,7 +38,7 @@ const color THUMB_COLOR_PRESSED = clrSilver;
 
 // window size
 const int WINDOW_WIDTH = 306;
-const int WINDOW_HEIGHT = 150;
+const int WINDOW_HEIGHT = 200;
 
 // general constants for indicators
 const int INDICATOR_X_OFFSET = 5;
@@ -63,10 +63,30 @@ const int INDICATOR_RANGE_SLIDER_HEIGHT = 40;
 const int INDICATOR_RANGE_SLIDER_EDIT_WIDTH = 30;
 const int INDICATOR_RANGE_SLIDER_SLOT_HEIGHT = 4;
 
+// BB control constants
+const bool BB_DEFAULT_STATE = true;
+const int BB_X = INDICATOR_X_OFFSET;
+const int BB_Y = INDICATOR_Y_OFFSET;
+const int BB_PERIOD_MIN_VALUE = 1;
+const int BB_PERIOD_MAX_VALUE = 100;
+const int BB_PERIOD_STEP_VALUE = 1;
+const int BB_PERIOD_DIGITS = 0;
+const int BB_PERIOD_START_VALUE = 14;
+const int BB_SHIFT_MIN_VALUE = 0;
+const int BB_SHIFT_MAX_VALUE = 100;
+const int BB_SHIFT_STEP_VALUE = 1;
+const int BB_SHIFT_DIGITS = 0;
+const int BB_SHIFT_START_VALUE = 0;
+const int BB_DEVIATION_MIN_VALUE = 0;
+const int BB_DEVIATION_MAX_VALUE = 100;
+const double BB_DEVIATION_STEP_VALUE = 0.1;
+const int BB_DEVIATION_DIGITS = 1;
+const int BB_DEVIATION_START_VALUE = 2;
+
 // WPR control constants
 const bool WPR_DEFAULT_STATE = true;
 const int WPR_X = INDICATOR_X_OFFSET;
-const int WPR_Y = INDICATOR_Y_OFFSET;
+const int WPR_Y = BB_Y + INDICATOR_RANGE_SLIDER_HEIGHT;
 const int WPR_PERIOD_MIN_VALUE = 1;
 const int WPR_PERIOD_MAX_VALUE = 100;
 const int WPR_PERIOD_STEP_VALUE = 1;
@@ -120,7 +140,8 @@ enum ControlWindowChange
   CWC_RSI_PERIOD,
   CWC_RSI_THRESHOLD,
   CWC_CCI_PERIOD,
-  CWC_CCI_THRESHOLD
+  CWC_CCI_THRESHOLD,
+  CWC_BB
 };
 //+------------------------------------------------------------------+
 class IControlWindowListener
@@ -139,6 +160,12 @@ private:
 
    //--- Form 1
    CWindow           window1_;
+
+   //--- BB controls
+   CCheckBox         bbEnableCheckbox_;
+   CSpinEdit         bbPeriodSpinEdit_;
+   CSpinEdit         bbShiftSpinEdit_;
+   CSpinEdit         bbDeviationSpinEdit_;
 
    //--- WPR controls
    CCheckBox         wprEnableCheckbox_;
@@ -169,6 +196,12 @@ public:
    void              OnTimerEvent(void);
 
 
+   //--- BB parameters
+   bool              IsBbEnabled();
+   int               GetBbPeriod();
+   int               GetBbShift();
+   double            GetBbDeviation();
+
    //--- WPR parameters
    bool              IsWprEnabled();
    int               GetWprPeriod();
@@ -198,9 +231,22 @@ public:
 private:
    //--- Form 1
    bool              CreateWindow1(const string text);
+   bool              CreateBbControls();
    bool              CreateWprControls();
    bool              CreateRsiControls();
    bool              CreateCciControls();
+
+   bool              CreateCheckBox(CCheckBox& checkBox, const string label,
+                                    bool value, int x, int y);
+   bool              CreateSpinEdit(CSpinEdit& spinEdit, const string label,
+                                    double max, double min, 
+                                    double step, int digits, double value, 
+                                    bool enabled, int x, int y);
+   bool              CreateDualSlider(CDualSlider& dualSlider, const string label,
+                                      double max, double min, 
+                                      double step, int digits, 
+                                      double leftValue, double rightValue, 
+                                      bool enabled, int x, int y);
 
    void              NotifyWindowChanged(ControlWindowChange change);
   };
@@ -254,6 +300,12 @@ void CControlWindow::OnEvent(const int id,const long &lparam,const double &dpara
   {
     if(id==CHARTEVENT_CUSTOM+ON_CLICK_LABEL)
      {
+      if(lparam==bbEnableCheckbox_.Id())
+        {
+         bbPeriodSpinEdit_.SpinEditState(bbEnableCheckbox_.CheckButtonState());
+         bbShiftSpinEdit_.SpinEditState(bbEnableCheckbox_.CheckButtonState());
+         bbDeviationSpinEdit_.SpinEditState(bbEnableCheckbox_.CheckButtonState());
+        }
       if(lparam==wprEnableCheckbox_.Id())
         {
          wprPeriodSpinEdit_.SpinEditState(wprEnableCheckbox_.CheckButtonState());
@@ -270,6 +322,11 @@ void CControlWindow::OnEvent(const int id,const long &lparam,const double &dpara
          cciRangeSlider_.SliderState(cciEnableCheckbox_.CheckButtonState());
         }
      }
+    if(lparam==bbPeriodSpinEdit_.Id() || lparam==bbShiftSpinEdit_.Id() || lparam==bbDeviationSpinEdit_.Id())
+    {
+      ::Print(__FUNCTION__," > id: ",id,"; lparam: ",lparam,"; dparam: ",dparam,"; sparam: ",sparam);
+      NotifyWindowChanged(CWC_BB);
+    }
     if(lparam==wprPeriodSpinEdit_.Id())
     {
       ::Print(__FUNCTION__," > id: ",id,"; lparam: ",lparam,"; dparam: ",dparam,"; sparam: ",sparam);
@@ -301,6 +358,25 @@ void CControlWindow::OnEvent(const int id,const long &lparam,const double &dpara
       NotifyWindowChanged(CWC_CCI_THRESHOLD);
     }
   }
+//+------------------------------------------------------------------+
+//| Returns BB parameters                                           |
+//+------------------------------------------------------------------+
+bool CControlWindow::IsBbEnabled()
+{
+  return bbEnableCheckbox_.CheckButtonState();
+}
+int CControlWindow::GetBbPeriod()
+{
+  return (int)bbPeriodSpinEdit_.GetValue();
+}
+int CControlWindow::GetBbShift()
+{
+  return (int)bbShiftSpinEdit_.GetValue();
+}
+double CControlWindow::GetBbDeviation()
+{
+  return bbDeviationSpinEdit_.GetValue();
+}
 //+------------------------------------------------------------------+
 //| Returns WPR parameters                                           |
 //+------------------------------------------------------------------+
@@ -367,6 +443,8 @@ bool CControlWindow::CreateTradePanel(void)
    if(!CreateWindow1("EXPERT PANEL"))
       return(false);
 
+   if(!CreateBbControls())
+      return(false);
    if(!CreateWprControls())
       return(false);
    if(!CreateRsiControls())
@@ -402,8 +480,50 @@ bool CControlWindow::CreateWindow1(const string caption_text)
 //---
    return(true);
   }
+  //+------------------------------------------------------------------+
+//| Creates WPR controls
 //+------------------------------------------------------------------+
-//| Creates RSI controls                                      |
+bool CControlWindow::CreateBbControls()
+  {
+    const int baseX = window1_.X() + BB_X;
+    const int baseY = window1_.Y() + BB_Y;
+    
+
+    // checkbox
+    int x = baseX + INDICATOR_ENABLE_CHECKBOX_X_OFFSET;
+    int y = baseY + INDICATOR_ENABLE_CHECKBOX_Y_OFFSET;
+    if (!CreateCheckBox(bbEnableCheckbox_, "BB", BB_DEFAULT_STATE, x, y))
+      return false;
+
+    // spin edit for period
+    x = baseX + INDICATOR_PERIOD_SPINEDIT_X_OFFSET;
+    y = baseY + INDICATOR_PERIOD_SPINEDIT_Y_OFFSET;
+    if (!CreateSpinEdit(bbPeriodSpinEdit_, "Period", 
+              BB_PERIOD_MAX_VALUE, BB_PERIOD_MIN_VALUE, BB_PERIOD_STEP_VALUE,
+              BB_PERIOD_DIGITS, BB_PERIOD_START_VALUE,
+              bbEnableCheckbox_.CheckButtonState(), x, y))
+      return false;
+
+    // spin edit for shift
+    x += bbPeriodSpinEdit_.XSize();
+    if (!CreateSpinEdit(bbShiftSpinEdit_, "Shift", 
+              BB_SHIFT_MAX_VALUE, BB_SHIFT_MIN_VALUE, BB_SHIFT_STEP_VALUE,
+              BB_SHIFT_DIGITS, BB_SHIFT_START_VALUE,
+              bbEnableCheckbox_.CheckButtonState(), x, y))
+      return false;
+
+    // spin edit for deviation
+    x += bbShiftSpinEdit_.XSize();
+    if (!CreateSpinEdit(bbDeviationSpinEdit_, "Dev.", 
+              BB_DEVIATION_MAX_VALUE, BB_DEVIATION_MIN_VALUE, BB_DEVIATION_STEP_VALUE,
+              BB_DEVIATION_DIGITS, BB_DEVIATION_START_VALUE,
+              bbEnableCheckbox_.CheckButtonState(), x, y))
+      return false;
+
+    return(true);
+  }
+//+------------------------------------------------------------------+
+//| Creates WPR controls
 //+------------------------------------------------------------------+
 bool CControlWindow::CreateWprControls()
   {
@@ -412,78 +532,28 @@ bool CControlWindow::CreateWprControls()
     
 
     // checkbox
-    wprEnableCheckbox_.WindowPointer(window1_);
-    wprEnableCheckbox_.XSize(INDICATOR_ENABLE_CHECKBOX_WIDTH);
-    wprEnableCheckbox_.YSize(INDICATOR_ENABLE_CHECKBOX_HEIGHT);
-    wprEnableCheckbox_.AreaColor(AREA_COLOR);
-    wprEnableCheckbox_.LabelColor(LABEL_COLOR);
-    wprEnableCheckbox_.LabelColorOff(LABEL_OFF_COLOR);
-    wprEnableCheckbox_.LabelColorLocked(LABEL_LOCKED_COLOR);
-    wprEnableCheckbox_.CheckButtonState(WPR_DEFAULT_STATE);
     int x = baseX + INDICATOR_ENABLE_CHECKBOX_X_OFFSET;
     int y = baseY + INDICATOR_ENABLE_CHECKBOX_Y_OFFSET;
-    if (!wprEnableCheckbox_.CreateCheckBox(m_chart_id, m_subwin, "WPR", x, y))
+    if (!CreateCheckBox(wprEnableCheckbox_, "WPR", WPR_DEFAULT_STATE, x, y))
       return false;
-    CWndContainer::AddToElementsArray(0, wprEnableCheckbox_);
 
     // spin edit for period
-    wprPeriodSpinEdit_.WindowPointer(window1_);
-    wprPeriodSpinEdit_.XSize(INDICATOR_PERIOD_SPINEDIT_WIDTH);
-    wprPeriodSpinEdit_.YSize(INDICATOR_PERIOD_SPINEDIT_HEIGHT);
-    wprPeriodSpinEdit_.EditXSize(INDICATOR_PERIOD_SPINEDIT_EDIT_WIDTH);
-    wprPeriodSpinEdit_.MaxValue(WPR_PERIOD_MAX_VALUE);
-    wprPeriodSpinEdit_.MinValue(WPR_PERIOD_MIN_VALUE);
-    wprPeriodSpinEdit_.StepValue(WPR_PERIOD_STEP_VALUE);
-    wprPeriodSpinEdit_.SetDigits(WPR_PERIOD_DIGITS);
-    wprPeriodSpinEdit_.SetValue(WPR_PERIOD_START_VALUE);
-    wprPeriodSpinEdit_.ResetMode(true);
-    wprPeriodSpinEdit_.AreaColor(AREA_COLOR);
-    wprPeriodSpinEdit_.LabelColor(LABEL_COLOR);
-    wprPeriodSpinEdit_.LabelColorLocked(LABEL_LOCKED_COLOR);
-    wprPeriodSpinEdit_.EditColorLocked(EDIT_LOCKED_COLOR);
-    wprPeriodSpinEdit_.EditTextColor(EDIT_TEXT_COLOR);
-    wprPeriodSpinEdit_.EditTextColorLocked(EDIT_LOCKED_TEXT_COLOR);
-    wprPeriodSpinEdit_.EditBorderColor(EDIT_BORDER_COLOR);
-    wprPeriodSpinEdit_.EditBorderColorLocked(EDIT_LOCKED_BORDER_COLOR);
-    wprPeriodSpinEdit_.SpinEditState(wprEnableCheckbox_.CheckButtonState());
     x = baseX + INDICATOR_PERIOD_SPINEDIT_X_OFFSET;
     y = baseY + INDICATOR_PERIOD_SPINEDIT_Y_OFFSET;
-    if (!wprPeriodSpinEdit_.CreateSpinEdit(m_chart_id, m_subwin, "Period", x, y))
+    if (!CreateSpinEdit(wprPeriodSpinEdit_, "Period", 
+          WPR_PERIOD_MAX_VALUE, WPR_PERIOD_MIN_VALUE, WPR_PERIOD_STEP_VALUE,
+          WPR_PERIOD_DIGITS, WPR_PERIOD_START_VALUE,
+          wprEnableCheckbox_.CheckButtonState(), x, y))
       return false;
-    CWndContainer::AddToElementsArray(0, wprPeriodSpinEdit_);
 
     // slider for trigger range setting
-    wprRangeSlider_.WindowPointer(window1_);
-    wprRangeSlider_.XSize(INDICATOR_RANGE_SLIDER_WIDTH);
-    wprRangeSlider_.YSize(INDICATOR_RANGE_SLIDER_HEIGHT);
-    wprRangeSlider_.EditXSize(INDICATOR_RANGE_SLIDER_EDIT_WIDTH);
-    wprRangeSlider_.MinValue(WPR_RANGE_MIN_VALUE);
-    wprRangeSlider_.MaxValue(WPR_RANGE_MAX_VALUE);
-    wprRangeSlider_.StepValue(WPR_RANGE_STEP_VALUE);
-    wprRangeSlider_.SetDigits(WPR_RANGE_DIGITS);
-    wprRangeSlider_.SetLeftValue(WPR_RANGE_LEFT_START_VALUE);
-    wprRangeSlider_.SetRightValue(WPR_RANGE_RIGHT_START_VALUE);
-    wprRangeSlider_.AreaColor(AREA_COLOR);
-    wprRangeSlider_.LabelColor(LABEL_COLOR);
-    wprRangeSlider_.LabelColorLocked(LABEL_LOCKED_COLOR);
-    wprRangeSlider_.EditColorLocked(EDIT_LOCKED_COLOR);
-    wprRangeSlider_.EditBorderColor(EDIT_BORDER_COLOR);
-    wprRangeSlider_.EditBorderColorLocked(EDIT_LOCKED_BORDER_COLOR);
-    wprRangeSlider_.EditTextColor(EDIT_TEXT_COLOR);
-    wprRangeSlider_.EditTextColorLocked(EDIT_LOCKED_TEXT_COLOR);
-    wprRangeSlider_.SlotLineDarkColor(SLOT_LINE_DARK_COLOR);
-    wprRangeSlider_.SlotLineLightColor(SLOT_LINE_LIGHT_COLOR);
-    wprRangeSlider_.SlotIndicatorColor(SLOT_INDICATOR_COLOR);
-    wprRangeSlider_.SlotIndicatorColorLocked(SLOT_INDICATOR_LOCKED_COLOR);
-    wprRangeSlider_.SlotYSize(INDICATOR_RANGE_SLIDER_SLOT_HEIGHT);
-    wprRangeSlider_.ThumbColorLocked(THUMB_LOCKED_COLOR);
-    wprRangeSlider_.ThumbColorPressed(THUMB_COLOR_PRESSED);
-    wprRangeSlider_.SliderState(wprEnableCheckbox_.CheckButtonState());
     x = baseX + INDICATOR_RANGE_SLIDER_X_OFFSET;
     y = baseY + INDICATOR_RANGE_SLIDER_Y_OFFSET;
-    if(!wprRangeSlider_.CreateSlider(m_chart_id,m_subwin,"Range",x,y))
-      return(false);
-    CWndContainer::AddToElementsArray(0, wprRangeSlider_);
+    if (!CreateDualSlider(wprRangeSlider_, "Range", 
+      WPR_RANGE_MAX_VALUE, WPR_RANGE_MIN_VALUE, WPR_RANGE_STEP_VALUE,
+      WPR_RANGE_DIGITS, WPR_RANGE_LEFT_START_VALUE, WPR_RANGE_RIGHT_START_VALUE,
+      wprEnableCheckbox_.CheckButtonState(), x, y))
+      return false;
 
     return(true);
   }
@@ -497,78 +567,28 @@ bool CControlWindow::CreateRsiControls()
     
 
     // checkbox
-    rsiEnableCheckbox_.WindowPointer(window1_);
-    rsiEnableCheckbox_.XSize(INDICATOR_ENABLE_CHECKBOX_WIDTH);
-    rsiEnableCheckbox_.YSize(INDICATOR_ENABLE_CHECKBOX_HEIGHT);
-    rsiEnableCheckbox_.AreaColor(AREA_COLOR);
-    rsiEnableCheckbox_.LabelColor(LABEL_COLOR);
-    rsiEnableCheckbox_.LabelColorOff(LABEL_OFF_COLOR);
-    rsiEnableCheckbox_.LabelColorLocked(LABEL_LOCKED_COLOR);
-    rsiEnableCheckbox_.CheckButtonState(RSI_DEFAULT_STATE);
     int x = baseX + INDICATOR_ENABLE_CHECKBOX_X_OFFSET;
     int y = baseY + INDICATOR_ENABLE_CHECKBOX_Y_OFFSET;
-    if (!rsiEnableCheckbox_.CreateCheckBox(m_chart_id, m_subwin, "RSI", x, y))
+    if (!CreateCheckBox(rsiEnableCheckbox_, "RSI", RSI_DEFAULT_STATE, x, y))
       return false;
-    CWndContainer::AddToElementsArray(0, rsiEnableCheckbox_);
 
     // spin edit for period
-    rsiPeriodSpinEdit_.WindowPointer(window1_);
-    rsiPeriodSpinEdit_.XSize(INDICATOR_PERIOD_SPINEDIT_WIDTH);
-    rsiPeriodSpinEdit_.YSize(INDICATOR_PERIOD_SPINEDIT_HEIGHT);
-    rsiPeriodSpinEdit_.EditXSize(INDICATOR_PERIOD_SPINEDIT_EDIT_WIDTH);
-    rsiPeriodSpinEdit_.MaxValue(RSI_PERIOD_MAX_VALUE);
-    rsiPeriodSpinEdit_.MinValue(RSI_PERIOD_MIN_VALUE);
-    rsiPeriodSpinEdit_.StepValue(RSI_PERIOD_STEP_VALUE);
-    rsiPeriodSpinEdit_.SetDigits(RSI_PERIOD_DIGITS);
-    rsiPeriodSpinEdit_.SetValue(RSI_PERIOD_START_VALUE);
-    rsiPeriodSpinEdit_.ResetMode(true);
-    rsiPeriodSpinEdit_.AreaColor(AREA_COLOR);
-    rsiPeriodSpinEdit_.LabelColor(LABEL_COLOR);
-    rsiPeriodSpinEdit_.LabelColorLocked(LABEL_LOCKED_COLOR);
-    rsiPeriodSpinEdit_.EditColorLocked(EDIT_LOCKED_COLOR);
-    rsiPeriodSpinEdit_.EditTextColor(EDIT_TEXT_COLOR);
-    rsiPeriodSpinEdit_.EditTextColorLocked(EDIT_LOCKED_TEXT_COLOR);
-    rsiPeriodSpinEdit_.EditBorderColor(EDIT_BORDER_COLOR);
-    rsiPeriodSpinEdit_.EditBorderColorLocked(EDIT_LOCKED_BORDER_COLOR);
-    rsiPeriodSpinEdit_.SpinEditState(rsiEnableCheckbox_.CheckButtonState());
     x = baseX + INDICATOR_PERIOD_SPINEDIT_X_OFFSET;
     y = baseY + INDICATOR_PERIOD_SPINEDIT_Y_OFFSET;
-    if (!rsiPeriodSpinEdit_.CreateSpinEdit(m_chart_id, m_subwin, "Period", x, y))
+    if (!CreateSpinEdit(rsiPeriodSpinEdit_, "Period", 
+          RSI_PERIOD_MAX_VALUE, RSI_PERIOD_MIN_VALUE, RSI_PERIOD_STEP_VALUE,
+          RSI_PERIOD_DIGITS, RSI_PERIOD_START_VALUE,
+          rsiEnableCheckbox_.CheckButtonState(), x, y))
       return false;
-    CWndContainer::AddToElementsArray(0, rsiPeriodSpinEdit_);
 
     // slider for trigger range setting
-    rsiRangeSlider_.WindowPointer(window1_);
-    rsiRangeSlider_.XSize(INDICATOR_RANGE_SLIDER_WIDTH);
-    rsiRangeSlider_.YSize(INDICATOR_RANGE_SLIDER_HEIGHT);
-    rsiRangeSlider_.EditXSize(INDICATOR_RANGE_SLIDER_EDIT_WIDTH);
-    rsiRangeSlider_.MinValue(RSI_RANGE_MIN_VALUE);
-    rsiRangeSlider_.MaxValue(RSI_RANGE_MAX_VALUE);
-    rsiRangeSlider_.StepValue(RSI_RANGE_STEP_VALUE);
-    rsiRangeSlider_.SetDigits(RSI_RANGE_DIGITS);
-    rsiRangeSlider_.SetLeftValue(RSI_RANGE_LEFT_START_VALUE);
-    rsiRangeSlider_.SetRightValue(RSI_RANGE_RIGHT_START_VALUE);
-    rsiRangeSlider_.AreaColor(AREA_COLOR);
-    rsiRangeSlider_.LabelColor(LABEL_COLOR);
-    rsiRangeSlider_.LabelColorLocked(LABEL_LOCKED_COLOR);
-    rsiRangeSlider_.EditColorLocked(EDIT_LOCKED_COLOR);
-    rsiRangeSlider_.EditBorderColor(EDIT_BORDER_COLOR);
-    rsiRangeSlider_.EditBorderColorLocked(EDIT_LOCKED_BORDER_COLOR);
-    rsiRangeSlider_.EditTextColor(EDIT_TEXT_COLOR);
-    rsiRangeSlider_.EditTextColorLocked(EDIT_LOCKED_TEXT_COLOR);
-    rsiRangeSlider_.SlotLineDarkColor(SLOT_LINE_DARK_COLOR);
-    rsiRangeSlider_.SlotLineLightColor(SLOT_LINE_LIGHT_COLOR);
-    rsiRangeSlider_.SlotIndicatorColor(SLOT_INDICATOR_COLOR);
-    rsiRangeSlider_.SlotIndicatorColorLocked(SLOT_INDICATOR_LOCKED_COLOR);
-    rsiRangeSlider_.SlotYSize(INDICATOR_RANGE_SLIDER_SLOT_HEIGHT);
-    rsiRangeSlider_.ThumbColorLocked(THUMB_LOCKED_COLOR);
-    rsiRangeSlider_.ThumbColorPressed(THUMB_COLOR_PRESSED);
-    rsiRangeSlider_.SliderState(rsiEnableCheckbox_.CheckButtonState());
     x = baseX + INDICATOR_RANGE_SLIDER_X_OFFSET;
     y = baseY + INDICATOR_RANGE_SLIDER_Y_OFFSET;
-    if(!rsiRangeSlider_.CreateSlider(m_chart_id,m_subwin,"Range",x,y))
-      return(false);
-    CWndContainer::AddToElementsArray(0, rsiRangeSlider_); 
+    if (!CreateDualSlider(rsiRangeSlider_, "Range", 
+      RSI_RANGE_MAX_VALUE, RSI_RANGE_MIN_VALUE, RSI_RANGE_STEP_VALUE,
+      RSI_RANGE_DIGITS, RSI_RANGE_LEFT_START_VALUE, RSI_RANGE_RIGHT_START_VALUE,
+      rsiEnableCheckbox_.CheckButtonState(), x, y))
+      return false;
 
     return(true);
   }
@@ -582,81 +602,113 @@ bool CControlWindow::CreateCciControls()
     
 
     // checkbox
-    cciEnableCheckbox_.WindowPointer(window1_);
-    cciEnableCheckbox_.XSize(INDICATOR_ENABLE_CHECKBOX_WIDTH);
-    cciEnableCheckbox_.YSize(INDICATOR_ENABLE_CHECKBOX_HEIGHT);
-    cciEnableCheckbox_.AreaColor(AREA_COLOR);
-    cciEnableCheckbox_.LabelColor(LABEL_COLOR);
-    cciEnableCheckbox_.LabelColorOff(LABEL_OFF_COLOR);
-    cciEnableCheckbox_.LabelColorLocked(LABEL_LOCKED_COLOR);
-    cciEnableCheckbox_.CheckButtonState(CCI_DEFAULT_STATE);
     int x = baseX + INDICATOR_ENABLE_CHECKBOX_X_OFFSET;
     int y = baseY + INDICATOR_ENABLE_CHECKBOX_Y_OFFSET;
-    if (!cciEnableCheckbox_.CreateCheckBox(m_chart_id, m_subwin, "CCI", x, y))
+    if (!CreateCheckBox(cciEnableCheckbox_, "CCI", CCI_DEFAULT_STATE, x, y))
       return false;
-    CWndContainer::AddToElementsArray(0, cciEnableCheckbox_);
 
     // spin edit for period
-    cciPeriodSpinEdit_.WindowPointer(window1_);
-    cciPeriodSpinEdit_.XSize(INDICATOR_PERIOD_SPINEDIT_WIDTH);
-    cciPeriodSpinEdit_.YSize(INDICATOR_PERIOD_SPINEDIT_HEIGHT);
-    cciPeriodSpinEdit_.EditXSize(INDICATOR_PERIOD_SPINEDIT_EDIT_WIDTH);
-    cciPeriodSpinEdit_.MaxValue(CCI_PERIOD_MAX_VALUE);
-    cciPeriodSpinEdit_.MinValue(CCI_PERIOD_MIN_VALUE);
-    cciPeriodSpinEdit_.StepValue(CCI_PERIOD_STEP_VALUE);
-    cciPeriodSpinEdit_.SetDigits(CCI_PERIOD_DIGITS);
-    cciPeriodSpinEdit_.SetValue(CCI_PERIOD_START_VALUE);
-    cciPeriodSpinEdit_.ResetMode(true);
-    cciPeriodSpinEdit_.AreaColor(AREA_COLOR);
-    cciPeriodSpinEdit_.LabelColor(LABEL_COLOR);
-    cciPeriodSpinEdit_.LabelColorLocked(LABEL_LOCKED_COLOR);
-    cciPeriodSpinEdit_.EditColorLocked(EDIT_LOCKED_COLOR);
-    cciPeriodSpinEdit_.EditTextColor(EDIT_TEXT_COLOR);
-    cciPeriodSpinEdit_.EditTextColorLocked(EDIT_LOCKED_TEXT_COLOR);
-    cciPeriodSpinEdit_.EditBorderColor(EDIT_BORDER_COLOR);
-    cciPeriodSpinEdit_.EditBorderColorLocked(EDIT_LOCKED_BORDER_COLOR);
-    cciPeriodSpinEdit_.SpinEditState(cciEnableCheckbox_.CheckButtonState());
     x = baseX + INDICATOR_PERIOD_SPINEDIT_X_OFFSET;
     y = baseY + INDICATOR_PERIOD_SPINEDIT_Y_OFFSET;
-    if (!cciPeriodSpinEdit_.CreateSpinEdit(m_chart_id, m_subwin, "Period", x, y))
+    if (!CreateSpinEdit(cciPeriodSpinEdit_, "Period", 
+          CCI_PERIOD_MAX_VALUE, CCI_PERIOD_MIN_VALUE, CCI_PERIOD_STEP_VALUE,
+          CCI_PERIOD_DIGITS, CCI_PERIOD_START_VALUE,
+          cciEnableCheckbox_.CheckButtonState(), x, y))
       return false;
-    CWndContainer::AddToElementsArray(0, cciPeriodSpinEdit_);
 
     // slider for trigger range setting
-    cciRangeSlider_.WindowPointer(window1_);
-    cciRangeSlider_.XSize(INDICATOR_RANGE_SLIDER_WIDTH);
-    cciRangeSlider_.YSize(INDICATOR_RANGE_SLIDER_HEIGHT);
-    cciRangeSlider_.EditXSize(INDICATOR_RANGE_SLIDER_EDIT_WIDTH);
-    cciRangeSlider_.MinValue(CCI_RANGE_MIN_VALUE);
-    cciRangeSlider_.MaxValue(CCI_RANGE_MAX_VALUE);
-    cciRangeSlider_.StepValue(CCI_RANGE_STEP_VALUE);
-    cciRangeSlider_.SetDigits(CCI_RANGE_DIGITS);
-    cciRangeSlider_.SetLeftValue(CCI_RANGE_LEFT_START_VALUE);
-    cciRangeSlider_.SetRightValue(RSI_RANGE_RIGHT_START_VALUE);
-    cciRangeSlider_.AreaColor(AREA_COLOR);
-    cciRangeSlider_.LabelColor(LABEL_COLOR);
-    cciRangeSlider_.LabelColorLocked(LABEL_LOCKED_COLOR);
-    cciRangeSlider_.EditColorLocked(EDIT_LOCKED_COLOR);
-    cciRangeSlider_.EditBorderColor(EDIT_BORDER_COLOR);
-    cciRangeSlider_.EditBorderColorLocked(EDIT_LOCKED_BORDER_COLOR);
-    cciRangeSlider_.EditTextColor(EDIT_TEXT_COLOR);
-    cciRangeSlider_.EditTextColorLocked(EDIT_LOCKED_TEXT_COLOR);
-    cciRangeSlider_.SlotLineDarkColor(SLOT_LINE_DARK_COLOR);
-    cciRangeSlider_.SlotLineLightColor(SLOT_LINE_LIGHT_COLOR);
-    cciRangeSlider_.SlotIndicatorColor(SLOT_INDICATOR_COLOR);
-    cciRangeSlider_.SlotIndicatorColorLocked(SLOT_INDICATOR_LOCKED_COLOR);
-    cciRangeSlider_.SlotYSize(INDICATOR_RANGE_SLIDER_SLOT_HEIGHT);
-    cciRangeSlider_.ThumbColorLocked(THUMB_LOCKED_COLOR);
-    cciRangeSlider_.ThumbColorPressed(THUMB_COLOR_PRESSED);
-    cciRangeSlider_.SliderState(cciEnableCheckbox_.CheckButtonState());
     x = baseX + INDICATOR_RANGE_SLIDER_X_OFFSET;
     y = baseY + INDICATOR_RANGE_SLIDER_Y_OFFSET;
-    if(!cciRangeSlider_.CreateSlider(m_chart_id,m_subwin,"Range",x,y))
-      return(false);
-    CWndContainer::AddToElementsArray(0, cciRangeSlider_);
+    if (!CreateDualSlider(cciRangeSlider_, "Range", 
+      CCI_RANGE_MAX_VALUE, CCI_RANGE_MIN_VALUE, CCI_RANGE_STEP_VALUE,
+      CCI_RANGE_DIGITS, CCI_RANGE_LEFT_START_VALUE, RSI_RANGE_RIGHT_START_VALUE,
+      cciEnableCheckbox_.CheckButtonState(), x, y))
+      return false;
 
     return(true);
   }
+
+bool CControlWindow::CreateCheckBox(CCheckBox& checkBox, const string label,
+                                    bool value, int x, int y)
+{
+  checkBox.WindowPointer(window1_);
+  checkBox.XSize(INDICATOR_ENABLE_CHECKBOX_WIDTH);
+  checkBox.YSize(INDICATOR_ENABLE_CHECKBOX_HEIGHT);
+  checkBox.AreaColor(AREA_COLOR);
+  checkBox.LabelColor(LABEL_COLOR);
+  checkBox.LabelColorOff(LABEL_OFF_COLOR);
+  checkBox.LabelColorLocked(LABEL_LOCKED_COLOR);
+  checkBox.CheckButtonState(value);
+  if (!checkBox.CreateCheckBox(m_chart_id, m_subwin, label, x, y))
+    return false;
+  CWndContainer::AddToElementsArray(0, checkBox);
+  return true;
+}
+
+bool CControlWindow::CreateSpinEdit(CSpinEdit& spinEdit, const string label,
+  double max, double min, double step, int digits, double value, 
+  bool enabled, int x, int y)
+{
+  spinEdit.WindowPointer(window1_);
+  spinEdit.XSize(INDICATOR_PERIOD_SPINEDIT_WIDTH);
+  spinEdit.YSize(INDICATOR_PERIOD_SPINEDIT_HEIGHT);
+  spinEdit.EditXSize(INDICATOR_PERIOD_SPINEDIT_EDIT_WIDTH);
+  spinEdit.MaxValue(max);
+  spinEdit.MinValue(min);
+  spinEdit.StepValue(step);
+  spinEdit.SetDigits(digits);
+  spinEdit.SetValue(value);
+  spinEdit.ResetMode(true);
+  spinEdit.AreaColor(AREA_COLOR);
+  spinEdit.LabelColor(LABEL_COLOR);
+  spinEdit.LabelColorLocked(LABEL_LOCKED_COLOR);
+  spinEdit.EditColorLocked(EDIT_LOCKED_COLOR);
+  spinEdit.EditTextColor(EDIT_TEXT_COLOR);
+  spinEdit.EditTextColorLocked(EDIT_LOCKED_TEXT_COLOR);
+  spinEdit.EditBorderColor(EDIT_BORDER_COLOR);
+  spinEdit.EditBorderColorLocked(EDIT_LOCKED_BORDER_COLOR);
+  spinEdit.SpinEditState(enabled);
+  if (!spinEdit.CreateSpinEdit(m_chart_id, m_subwin, label, x, y))
+    return false;
+  CWndContainer::AddToElementsArray(0, spinEdit);
+  return true;
+}
+
+bool CControlWindow::CreateDualSlider(CDualSlider& dualSlider, const string label,
+  double max, double min, double step, int digits, double leftValue, double rightValue, 
+  bool enabled, int x, int y)
+{
+  dualSlider.WindowPointer(window1_);
+  dualSlider.XSize(INDICATOR_RANGE_SLIDER_WIDTH);
+  dualSlider.YSize(INDICATOR_RANGE_SLIDER_HEIGHT);
+  dualSlider.EditXSize(INDICATOR_RANGE_SLIDER_EDIT_WIDTH);
+  dualSlider.MinValue(min);
+  dualSlider.MaxValue(max);
+  dualSlider.StepValue(step);
+  dualSlider.SetDigits(digits);
+  dualSlider.SetLeftValue(leftValue);
+  dualSlider.SetRightValue(rightValue);
+  dualSlider.AreaColor(AREA_COLOR);
+  dualSlider.LabelColor(LABEL_COLOR);
+  dualSlider.LabelColorLocked(LABEL_LOCKED_COLOR);
+  dualSlider.EditColorLocked(EDIT_LOCKED_COLOR);
+  dualSlider.EditBorderColor(EDIT_BORDER_COLOR);
+  dualSlider.EditBorderColorLocked(EDIT_LOCKED_BORDER_COLOR);
+  dualSlider.EditTextColor(EDIT_TEXT_COLOR);
+  dualSlider.EditTextColorLocked(EDIT_LOCKED_TEXT_COLOR);
+  dualSlider.SlotLineDarkColor(SLOT_LINE_DARK_COLOR);
+  dualSlider.SlotLineLightColor(SLOT_LINE_LIGHT_COLOR);
+  dualSlider.SlotIndicatorColor(SLOT_INDICATOR_COLOR);
+  dualSlider.SlotIndicatorColorLocked(SLOT_INDICATOR_LOCKED_COLOR);
+  dualSlider.SlotYSize(INDICATOR_RANGE_SLIDER_SLOT_HEIGHT);
+  dualSlider.ThumbColorLocked(THUMB_LOCKED_COLOR);
+  dualSlider.ThumbColorPressed(THUMB_COLOR_PRESSED);
+  dualSlider.SliderState(enabled);
+  if(!dualSlider.CreateSlider(m_chart_id,m_subwin,label,x,y))
+    return(false);
+  CWndContainer::AddToElementsArray(0, dualSlider);
+  return true;
+}
 
 //+------------------------------------------------------------------+
 //|                                                                � |

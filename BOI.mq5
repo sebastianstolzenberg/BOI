@@ -9,54 +9,69 @@
 
 // #property indicator_separate_window
 #property indicator_chart_window
-#property indicator_buffers 9
-#property indicator_plots   6
+#property indicator_buffers 11
+#property indicator_plots   7
 
 //--- set limit of the indicator values 
 // #property indicator_minimum -50 
 // #property indicator_maximum 50 
 
-#property indicator_label1  "WPR" 
-#property indicator_color1  Green,Red
-#property indicator_type1   DRAW_COLOR_LINE
-#property indicator_width1  1
+#property indicator_label1  "Alert" 
+#property indicator_color1  clrAqua,clrRed
+#property indicator_type1   DRAW_COLOR_ARROW
+#property indicator_width1  15
 
-#property indicator_label2  "RSI" 
-#property indicator_color2  clrDarkTurquoise,Red
-#property indicator_type2   DRAW_COLOR_LINE
+#property indicator_label2  "BB-upper" 
+#property indicator_color2  Gray
+#property indicator_type2   DRAW_LINE
+#property indicator_style2  STYLE_DASH
 #property indicator_width2  1
-
-#property indicator_label3  "CCI" 
-#property indicator_color3  clrOrchid,Red
-#property indicator_type3   DRAW_COLOR_LINE
+#property indicator_label3  "BB-middle" 
+#property indicator_color3  Gray
+#property indicator_type3   DRAW_LINE
 #property indicator_width3  1
-
-#property indicator_label4  "BB-upper" 
+#property indicator_label4  "BB-lower" 
 #property indicator_color4  Gray
 #property indicator_type4   DRAW_LINE
+#property indicator_style4  STYLE_DASH
 #property indicator_width4  1
-#property indicator_label5  "BB-middle" 
-#property indicator_color5  Gray
-#property indicator_type5   DRAW_LINE
+
+#property indicator_label5  "WPR" 
+#property indicator_color5  clrPowderBlue,clrLime,clrRed
+#property indicator_type5   DRAW_COLOR_ARROW
 #property indicator_width5  1
-#property indicator_label6  "BB-lower" 
-#property indicator_color6  Gray
-#property indicator_type6   DRAW_LINE
+
+#property indicator_label6  "RSI" 
+#property indicator_color6  clrThistle,clrLime,clrRed
+#property indicator_type6   DRAW_COLOR_ARROW
 #property indicator_width6  1
+
+#property indicator_label7  "CCI" 
+#property indicator_color7  clrWheat,clrLime,clrRed
+#property indicator_type7   DRAW_COLOR_ARROW
+#property indicator_width7  1
 
 
 #include "ControlWindow.mqh"
 #include "indicators/WPR.mqh"
 #include "indicators/RSI.mqh"
 #include "indicators/CCI.mqh"
+#include "indicators/BB.mqh"
 
-const double INDICATOR_PLOT_HEIGHT = 0.1;
-const double INDICATOR_PLOT_SHIFT = 1;
+const double INDICATOR_PLOT_HEIGHT = 0.02;
+const double INDICATOR_PLOT_SHIFT = 2;
 
 //+------------------------------------------------------------------+
 //| Global Variables                                                 |
 //+------------------------------------------------------------------+
 //---- buffers
+double alertPriceBuffer_[];
+double alertColorBuffer_[];
+
+double bbUpperBuffer_[];
+double bbMiddleBuffer_[];
+double bbLowerBuffer_[];
+
 double wprBuffer_[];
 double wprColorBuffer_[];
 
@@ -66,10 +81,6 @@ double rsiColorBuffer_[];
 double cciBuffer_[];
 double cciColorBuffer_[];
 
-double bbUpperBuffer_[];
-double bbMiddleBuffer_[];
-double bbLowerBuffer_[];
-
 double chartMin_;
 double chartMax_;
 double wprMin_;
@@ -78,6 +89,7 @@ double wprMax_;
 WPR wpr_;
 RSI rsi_;
 CCI cci_;
+BB bb_;
 CControlWindow controlWindow_;
 
 
@@ -97,10 +109,13 @@ public:
     // ::Print(__FUNCTION__);
     switch (change)
       {
+      case CWC_BB:
+        InitializeBb();
+        break;
+
       case CWC_WPR_PERIOD:
         InitializeWpr();
         break;
-
       case CWC_WPR_THRESHOLD:
         wpr_.setThresholds(controlWindow_.GetWprUpperThreshold(),
                            controlWindow_.GetWprLowerThreshold());
@@ -109,7 +124,6 @@ public:
       case CWC_RSI_PERIOD:
         InitializeRsi();
         break;
-
       case CWC_RSI_THRESHOLD:
         rsi_.setThresholds(controlWindow_.GetRsiUpperThreshold(),
                            controlWindow_.GetRsiLowerThreshold());
@@ -118,7 +132,6 @@ public:
       case CWC_CCI_PERIOD:
         InitializeCci();
         break;
-
       case CWC_CCI_THRESHOLD:
         cci_.setThresholds(controlWindow_.GetCciUpperThreshold(),
                            controlWindow_.GetCciLowerThreshold());
@@ -171,6 +184,14 @@ double ChartFixedMinGet(const long chart_ID=0)
    return(result); 
   } 
   
+bool InitializeBb()
+  {
+  ::Print(__FUNCTION__);
+  return bb_.configure(controlWindow_.GetBbPeriod(),
+                       controlWindow_.GetBbShift(),
+                       controlWindow_.GetBbDeviation());
+  }
+
 bool InitializeWpr()
   {
   ::Print(__FUNCTION__);
@@ -217,21 +238,29 @@ void RedrawChangedIndicators()
 int OnInit()
   {
   ::Print(__FUNCTION__);
-    SetIndexBuffer(0,wprBuffer_,INDICATOR_DATA);
-    SetIndexBuffer(1,wprColorBuffer_,INDICATOR_COLOR_INDEX);
-    SetIndexBuffer(2,rsiBuffer_,INDICATOR_DATA);
-    SetIndexBuffer(3,rsiColorBuffer_,INDICATOR_COLOR_INDEX);
-    SetIndexBuffer(4,cciBuffer_,INDICATOR_DATA);
-    SetIndexBuffer(5,cciColorBuffer_,INDICATOR_COLOR_INDEX);
-    SetIndexBuffer(6,bbUpperBuffer_,INDICATOR_DATA);
-    SetIndexBuffer(7,bbMiddleBuffer_,INDICATOR_DATA);
-    SetIndexBuffer(8,bbLowerBuffer_,INDICATOR_DATA);
+    SetIndexBuffer(0,alertPriceBuffer_,INDICATOR_DATA);
+    SetIndexBuffer(1,alertColorBuffer_,INDICATOR_COLOR_INDEX);
+    SetIndexBuffer(2,bbUpperBuffer_,INDICATOR_DATA);
+    SetIndexBuffer(3,bbMiddleBuffer_,INDICATOR_DATA);
+    SetIndexBuffer(4,bbLowerBuffer_,INDICATOR_DATA);
+    SetIndexBuffer(5,wprBuffer_,INDICATOR_DATA);
+    SetIndexBuffer(6,wprColorBuffer_,INDICATOR_COLOR_INDEX);
+    SetIndexBuffer(7,rsiBuffer_,INDICATOR_DATA);
+    SetIndexBuffer(8,rsiColorBuffer_,INDICATOR_COLOR_INDEX);
+    SetIndexBuffer(9,cciBuffer_,INDICATOR_DATA);
+    SetIndexBuffer(10,cciColorBuffer_,INDICATOR_COLOR_INDEX);
     
     controlWindow_.SetListener(parameters_);
     controlWindow_.OnInitEvent();
     if (!controlWindow_.CreateTradePanel())
     {
       ::Print(__FUNCTION__," > Failed to create graphical interface!");
+      return INIT_FAILED;
+    }
+ 
+    if (!InitializeBb())
+    {
+      ::Print(__FUNCTION__," > Failed to create BB indicator!");
       return INIT_FAILED;
     }
  
@@ -252,7 +281,7 @@ int OnInit()
       ::Print(__FUNCTION__," > Failed to create CCI indicator!");
       return INIT_FAILED;
     }
- 
+
     return(INIT_SUCCEEDED);
   }
 //+------------------------------------------------------------------+
@@ -299,10 +328,10 @@ void OnChartEvent(const int id,
                              INDICATOR_PLOT_HEIGHT;
     double indicatorShift = indicatorHeight * INDICATOR_PLOT_SHIFT;
 
-    ::Print(__FUNCTION__," > chartMin = ", chartMin,
-                          ", chartMax = ", chartMax,
-                          ", indicatorHeight = ", indicatorHeight,
-                          ", indicatorShift = ", indicatorShift);
+    // ::Print(__FUNCTION__," > chartMin = ", chartMin,
+    //                       ", chartMax = ", chartMax,
+    //                       ", indicatorHeight = ", indicatorHeight,
+    //                       ", indicatorShift = ", indicatorShift);
     double wprMin = chartMin;
     double wprMax = wprMin + indicatorHeight;
     wpr_.setDrawRange(wprMin, wprMax);
@@ -325,17 +354,43 @@ int OnCalculate(const int rates_total,
                 const double &price[])
   {
   // ::Print(__FUNCTION__);
+  int bbTotal = bb_.calculateAndCopy(rates_total, prev_calculated,
+                          begin, bbUpperBuffer_, bbMiddleBuffer_, 
+                          bbLowerBuffer_);
+
+  int wprPrevious = wpr_.getPreviouslyCalculated();
   int wprTotal = wpr_.calculateAndCopy(rates_total, prev_calculated, 
                           begin, wprBuffer_, wprColorBuffer_);
 
+  int rsiPrevious = rsi_.getPreviouslyCalculated();
   int rsiTotal = rsi_.calculateAndCopy(rates_total, prev_calculated, 
                           begin, rsiBuffer_, rsiColorBuffer_);
 
+  int cciPrevious = cci_.getPreviouslyCalculated();
   int cciTotal = cci_.calculateAndCopy(rates_total, prev_calculated, 
                           begin, cciBuffer_, cciColorBuffer_);
 
+  int previous = MathMin(prev_calculated, 
+                    MathMin(wprPrevious, 
+                      MathMin(rsiPrevious, cciPrevious)));
+  int calculated = MathMin(wprTotal, MathMin(rsiTotal, MathMin(cciTotal, bbTotal))); 
 
-  return MathMin(wprTotal, MathMin(rsiTotal, cciTotal));
+  for (int i = calculated - previous - 1; i >= 0; --i)
+  {
+    if (wprColorBuffer_[i] > 0 &&
+        wprColorBuffer_[i] == rsiColorBuffer_[i] &&
+        wprColorBuffer_[i] == cciColorBuffer_[i])
+    {
+      alertColorBuffer_[i] = wprColorBuffer_[i] - 1;
+      alertPriceBuffer_[i] = price[i];
+    }
+    else 
+    {
+      alertPriceBuffer_[i] = 0;
+    }
+  }
+
+  return MathMin(wprTotal, MathMin(rsiTotal, MathMin(cciTotal, bbTotal)));
   }
 
 //+------------------------------------------------------------------+
