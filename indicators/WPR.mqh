@@ -76,7 +76,7 @@ WPR::~WPR()
 //+------------------------------------------------------------------+
 bool WPR::configure(int period)
   {
-  ::Print(__FUNCTION__, " > period = ", period);
+  // ::Print(__FUNCTION__, " > period = ", period);
   
   period_ = period;
   
@@ -103,9 +103,9 @@ void WPR::setColors(color noSignalColor, color signalColor)
 
 void WPR::setThresholds(double upperThreshold, double lowerThreshold)
   {
-  ::Print(__FUNCTION__, 
-          " > upperThreshold = ", upperThreshold,
-           ", lowerThreshold = ", lowerThreshold);
+  // ::Print(__FUNCTION__, 
+  //         " > upperThreshold = ", upperThreshold,
+  //          ", lowerThreshold = ", lowerThreshold);
   upperThreshold_ = upperThreshold;
   lowerThreshold_ = lowerThreshold;
 
@@ -137,10 +137,10 @@ int WPR::calculateAndCopy(int rates_total, int prev_calculated, int begin,
     return rates_total;
   }
 
-  ::Print(__FUNCTION__, " > rates_total = ", rates_total, 
-                         ", prev_calculated = ", prev_calculated,
-                         ", previouslyCalculated_ = ", previouslyCalculated_,
-                         ", begin = ", begin);
+  // ::Print(__FUNCTION__, " > rates_total = ", rates_total, 
+  //                        ", prev_calculated = ", prev_calculated,
+  //                        ", previouslyCalculated_ = ", previouslyCalculated_,
+  //                        ", begin = ", begin);
 
   if (rates_total < period_ - 1)
       return(0);

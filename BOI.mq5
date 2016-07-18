@@ -375,8 +375,12 @@ int OnCalculate(const int rates_total,
                       MathMin(rsiPrevious, cciPrevious)));
   int calculated = MathMin(wprTotal, MathMin(rsiTotal, MathMin(cciTotal, bbTotal))); 
 
-  for (int i = calculated - previous - 1; i >= 0; --i)
+  int itm = 0;
+  int otm = 0;
+  const int firstCalculated = calculated - previous - 1;
+  for (int i = firstCalculated; i >= 0; --i)
   {
+    // filter alerts
     if (wprColorBuffer_[i] > 0 &&
         wprColorBuffer_[i] == rsiColorBuffer_[i] &&
         wprColorBuffer_[i] == cciColorBuffer_[i])
@@ -388,9 +392,70 @@ int OnCalculate(const int rates_total,
     {
       alertPriceBuffer_[i] = 0;
     }
+
+    // check success
+    if (i < rates_total - 1 && alertPriceBuffer_[i+1] != 0)
+    {
+      ::Print(__FUNCTION__, " > i = ", i, 
+                             ", otm = ", otm, 
+                             ", sell = ", alertColorBuffer_[i+1], 
+                             ", diff = ", price[i+1] - price[i], 
+                             ", price[i+1] = ", price[i+1], 
+                             ", price[i] = ", price[i]);
+      if (alertColorBuffer_[i+1] == 0)
+      {
+        if (price[i+1] < price[i])
+        {
+          ++itm;
+        }
+        else
+        {
+          ++otm;
+        }
+      }
+      else
+      {
+        if (price[i+1] > price[i])
+        {
+          ++itm;
+        }
+        else
+        {
+          ++otm;
+        }
+      }
+    }
   }
+  ::Print(__FUNCTION__, " > itm = ", itm, ", otm = ", otm,
+                        " (",firstCalculated,",0)");
 
   return MathMin(wprTotal, MathMin(rsiTotal, MathMin(cciTotal, bbTotal)));
   }
 
+void CheckSuccess()
+{
+  int counted_bars=Bars(Symbol(),Period());
+
+  //   // check success
+  // if (int i != 0 && i < rates_total && alertPriceBuffer_[i-1] != 0)
+  // {
+  //   if (alertColorBuffer_[i-1] == 0 && price[i-1] < price[i])
+  //   {
+  //     ++itm;
+  //   }
+  //   else
+  //   {
+  //     ++otm;
+  //   }
+
+  //   if (alertColorBuffer_[i-1] == 1 && price[i-1] > price[i])
+  //   {
+  //     ++itm;
+  //   }
+  //   else
+  //   {
+  //     ++otm;
+  //   }
+  // }
+}
 //+------------------------------------------------------------------+

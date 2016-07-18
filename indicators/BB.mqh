@@ -59,9 +59,9 @@ BB::~BB()
 //+------------------------------------------------------------------+
 bool BB::configure(int period, int shift, double deviation)
   {
-  ::Print(__FUNCTION__, " > period = ", period, 
-                         ", shift = ", shift,
-                         ", deviation = ", deviation);
+  // ::Print(__FUNCTION__, " > period = ", period, 
+  //                        ", shift = ", shift,
+  //                        ", deviation = ", deviation);
   
   period_ = period;
   shift_ = shift;
@@ -104,11 +104,11 @@ int BB::calculateAndCopy(int rates_total, int prev_calculated, int begin,
   else 
     valuesToCopy = rates_total - prev_calculated; 
 
-  ::Print(__FUNCTION__, " > rates_total = ", rates_total, 
-                         ", prev_calculated = ", prev_calculated,
-                         ", previouslyCalculated_ = ", previouslyCalculated_,
-                         ", begin = ", begin,
-                         ", valuesToCopy = ", valuesToCopy);
+  // ::Print(__FUNCTION__, " > rates_total = ", rates_total, 
+  //                        ", prev_calculated = ", prev_calculated,
+  //                        ", previouslyCalculated_ = ", previouslyCalculated_,
+  //                        ", begin = ", begin,
+  //                        ", valuesToCopy = ", valuesToCopy);
 
   CopyBuffer(handle_,0,prev_calculated,valuesToCopy,middleBuffer);
   CopyBuffer(handle_,1,prev_calculated,valuesToCopy,upperBuffer);
