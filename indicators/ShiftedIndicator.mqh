@@ -23,9 +23,15 @@ private:
   double             drawRangeMin_;
   double             drawRangeMax_;
 
+  double             upperThreshold_;
+  double             lowerThreshold_;
+
   int                previouslyCalculated_;
 
 public:
+  double             dataBuffer[];
+  double             colorBuffer[];
+
                      ShiftedIndicator();
   virtual           ~ShiftedIndicator();
 
@@ -36,6 +42,7 @@ public:
   void               setPeriod(int period);
   void               setValueRange(double min, double max);
   void               setDrawRange(double min, double max);
+  void               setThresholds(double upperThreshold, double lowerThreshold);
 
   double             shiftValue(double value);
   void               redraw();
@@ -44,12 +51,6 @@ public:
   int                calculateAndCopy(int rates_total, 
                                       int prev_calculated, 
                                       int begin);
-
-protected:
-  virtual int        doCalculateAndCopy(int rates_total,
-                                        int prev_calculated,
-                                        int valuesToCopy) = 0;  
-
   };
 //+------------------------------------------------------------------+
 //|                                                                  |
@@ -120,6 +121,17 @@ void ShiftedIndicator::setDrawRange(double min, double max)
   }
 }
 
+void ShiftedIndicator::setThresholds(double upperThreshold, double lowerThreshold)
+  {
+  // ::Print(__FUNCTION__, 
+  //         " > upperThreshold = ", upperThreshold,
+  //          ", lowerThreshold = ", lowerThreshold);
+  upperThreshold_ = upperThreshold;
+  lowerThreshold_ = lowerThreshold;
+
+  redraw();
+  }
+
 double ShiftedIndicator::shiftValue(double value)
 {
   return (value - minimum_) / (maximum_ - minimum_) * 
@@ -164,7 +176,23 @@ int ShiftedIndicator::calculateAndCopy(int rates_total, int prev_calculated, int
   else 
     valuesToCopy = rates_total - prev_calculated; 
 
-  previouslyCalculated_ = doCalculateAndCopy(rates_total, prev_calculated, valuesToCopy);
+  CopyBuffer(getHandle(),0,prev_calculated,valuesToCopy,dataBuffer);
+
+  // color and shift
+  for (int i = prev_calculated; i < prev_calculated + valuesToCopy; ++i)
+    {
+    // color
+    if (dataBuffer[i] < lowerThreshold_)
+      colorBuffer[i] = 1;
+    else if (dataBuffer[i] > upperThreshold_)
+      colorBuffer[i] = 2;
+    else
+      colorBuffer[i] = 0;
+    // shift
+    dataBuffer[i] = shiftValue(dataBuffer[i]);
+    }
+
+  previouslyCalculated_ = rates_total;
   return rates_total;
   }
 
