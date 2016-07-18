@@ -1,10 +1,7 @@
 //+------------------------------------------------------------------+
 //|                                                          BOI.mq5 |
-//|                        Copyright 2016, MetaQuotes Software Corp. |
-//|                                             https://www.mql5.com |
 //+------------------------------------------------------------------+
-#property copyright "Copyright 2016, MetaQuotes Software Corp"
-#property link      "https://www.mql5.com"
+#property copyright "Sebastian Stolzenberg"
 #property version   "1.00"
 
 // #property indicator_separate_window
@@ -60,6 +57,8 @@
 
 const double INDICATOR_PLOT_HEIGHT = 0.02;
 const double INDICATOR_PLOT_SHIFT = 2;
+// const double INDICATOR_PLOT_HEIGHT = 0.2;
+// const double INDICATOR_PLOT_SHIFT = 1.1;
 
 //+------------------------------------------------------------------+
 //| Global Variables                                                 |
@@ -71,15 +70,6 @@ double alertColorBuffer_[];
 double bbUpperBuffer_[];
 double bbMiddleBuffer_[];
 double bbLowerBuffer_[];
-
-double wprBuffer_[];
-double wprColorBuffer_[];
-
-double rsiBuffer_[];
-double rsiColorBuffer_[];
-
-double cciBuffer_[];
-double cciColorBuffer_[];
 
 double chartMin_;
 double chartMax_;
@@ -243,12 +233,12 @@ int OnInit()
     SetIndexBuffer(2,bbUpperBuffer_,INDICATOR_DATA);
     SetIndexBuffer(3,bbMiddleBuffer_,INDICATOR_DATA);
     SetIndexBuffer(4,bbLowerBuffer_,INDICATOR_DATA);
-    SetIndexBuffer(5,wprBuffer_,INDICATOR_DATA);
-    SetIndexBuffer(6,wprColorBuffer_,INDICATOR_COLOR_INDEX);
-    SetIndexBuffer(7,rsiBuffer_,INDICATOR_DATA);
-    SetIndexBuffer(8,rsiColorBuffer_,INDICATOR_COLOR_INDEX);
-    SetIndexBuffer(9,cciBuffer_,INDICATOR_DATA);
-    SetIndexBuffer(10,cciColorBuffer_,INDICATOR_COLOR_INDEX);
+    SetIndexBuffer(5,wpr_.dataBuffer,INDICATOR_DATA);
+    SetIndexBuffer(6,wpr_.colorBuffer,INDICATOR_COLOR_INDEX);
+    SetIndexBuffer(7,rsi_.dataBuffer,INDICATOR_DATA);
+    SetIndexBuffer(8,rsi_.colorBuffer,INDICATOR_COLOR_INDEX);
+    SetIndexBuffer(9,cci_.dataBuffer,INDICATOR_DATA);
+    SetIndexBuffer(10,cci_.colorBuffer,INDICATOR_COLOR_INDEX);
     
     controlWindow_.SetListener(parameters_);
     controlWindow_.OnInitEvent();
@@ -359,16 +349,13 @@ int OnCalculate(const int rates_total,
                           bbLowerBuffer_);
 
   int wprPrevious = wpr_.getPreviouslyCalculated();
-  int wprTotal = wpr_.calculateAndCopy(rates_total, prev_calculated, 
-                          begin, wprBuffer_, wprColorBuffer_);
+  int wprTotal = wpr_.calculateAndCopy(rates_total, prev_calculated, begin);
 
   int rsiPrevious = rsi_.getPreviouslyCalculated();
-  int rsiTotal = rsi_.calculateAndCopy(rates_total, prev_calculated, 
-                          begin, rsiBuffer_, rsiColorBuffer_);
+  int rsiTotal = rsi_.calculateAndCopy(rates_total, prev_calculated, begin);
 
   int cciPrevious = cci_.getPreviouslyCalculated();
-  int cciTotal = cci_.calculateAndCopy(rates_total, prev_calculated, 
-                          begin, cciBuffer_, cciColorBuffer_);
+  int cciTotal = cci_.calculateAndCopy(rates_total, prev_calculated, begin);
 
   int previous = MathMin(prev_calculated, 
                     MathMin(wprPrevious, 
@@ -381,11 +368,11 @@ int OnCalculate(const int rates_total,
   for (int i = firstCalculated; i >= 0; --i)
   {
     // filter alerts
-    if (wprColorBuffer_[i] > 0 &&
-        wprColorBuffer_[i] == rsiColorBuffer_[i] &&
-        wprColorBuffer_[i] == cciColorBuffer_[i])
+    if (wpr_.colorBuffer[i] > 0 &&
+        wpr_.colorBuffer[i] == rsi_.colorBuffer[i] &&
+        wpr_.colorBuffer[i] == cci_.colorBuffer[i])
     {
-      alertColorBuffer_[i] = wprColorBuffer_[i] - 1;
+      alertColorBuffer_[i] = wpr_.colorBuffer[i] - 1;
       alertPriceBuffer_[i] = price[i];
     }
     else 

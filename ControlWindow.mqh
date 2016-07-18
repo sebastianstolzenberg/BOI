@@ -1,7 +1,5 @@
 //+------------------------------------------------------------------+
 //|                                                ControlWindow.mqh |
-//|                        Copyright 2016, MetaQuotes Software Corp. |
-//|                                             https://www.mql5.com |
 //+------------------------------------------------------------------+
 #property copyright "Sebastian Stolzenberg"
 #property version   "1.00"
@@ -457,7 +455,7 @@ bool CControlWindow::CreateTradePanel(void)
    return(true);
   }
 //+------------------------------------------------------------------+
-//| Creates form 1 for controls                                      |
+//| Creates form 1 for controls         
 //+------------------------------------------------------------------+
 bool CControlWindow::CreateWindow1(const string caption_text)
   {
@@ -558,7 +556,7 @@ bool CControlWindow::CreateWprControls()
     return(true);
   }
 //+------------------------------------------------------------------+
-//| Creates RSI controls                                      |
+//| Creates RSI controls   
 //+------------------------------------------------------------------+
 bool CControlWindow::CreateRsiControls()
   {
@@ -593,7 +591,7 @@ bool CControlWindow::CreateRsiControls()
     return(true);
   }
 //+------------------------------------------------------------------+
-//| Creates RSI controls                                      |
+//| Creates RSI controls   
 //+------------------------------------------------------------------+
 bool CControlWindow::CreateCciControls()
   {
