@@ -49,6 +49,8 @@
 #property indicator_width7  1
 
 
+#include <Files\FileTxt.mqh>
+
 #include "ControlWindow.mqh"
 #include "indicators/WPR.mqh"
 #include "indicators/RSI.mqh"
@@ -66,10 +68,6 @@ const double INDICATOR_PLOT_SHIFT = 2;
 //---- buffers
 double alertPriceBuffer_[];
 double alertColorBuffer_[];
-
-double bbUpperBuffer_[];
-double bbMiddleBuffer_[];
-double bbLowerBuffer_[];
 
 double chartMin_;
 double chartMax_;
@@ -99,10 +97,16 @@ public:
     // ::Print(__FUNCTION__);
     switch (change)
       {
-      case CWC_BB:
+      case CWC_BB_ENABLED:
+        bb_.setEnabled(controlWindow_.IsBbEnabled());
+        break;
+      case CWC_BB_PARAMETERS:
         InitializeBb();
         break;
 
+      case CWC_WPR_ENABLED:
+        wpr_.setEnabled(controlWindow_.IsWprEnabled());
+        break;
       case CWC_WPR_PERIOD:
         InitializeWpr();
         break;
@@ -111,6 +115,9 @@ public:
                            controlWindow_.GetWprLowerThreshold());
         break;
 
+      case CWC_RSI_ENABLED:
+        rsi_.setEnabled(controlWindow_.IsRsiEnabled());
+        break;
       case CWC_RSI_PERIOD:
         InitializeRsi();
         break;
@@ -119,6 +126,9 @@ public:
                            controlWindow_.GetRsiLowerThreshold());
         break;
 
+      case CWC_CCI_ENABLED:
+        cci_.setEnabled(controlWindow_.IsCciEnabled());
+        break;
       case CWC_CCI_PERIOD:
         InitializeCci();
         break;
@@ -177,6 +187,7 @@ double ChartFixedMinGet(const long chart_ID=0)
 bool InitializeBb()
   {
   ::Print(__FUNCTION__);
+  bb_.setEnabled(controlWindow_.IsBbEnabled());
   return bb_.configure(controlWindow_.GetBbPeriod(),
                        controlWindow_.GetBbShift(),
                        controlWindow_.GetBbDeviation());
@@ -230,9 +241,9 @@ int OnInit()
   ::Print(__FUNCTION__);
     SetIndexBuffer(0,alertPriceBuffer_,INDICATOR_DATA);
     SetIndexBuffer(1,alertColorBuffer_,INDICATOR_COLOR_INDEX);
-    SetIndexBuffer(2,bbUpperBuffer_,INDICATOR_DATA);
-    SetIndexBuffer(3,bbMiddleBuffer_,INDICATOR_DATA);
-    SetIndexBuffer(4,bbLowerBuffer_,INDICATOR_DATA);
+    SetIndexBuffer(2,bb_.upperBuffer,INDICATOR_DATA);
+    SetIndexBuffer(3,bb_.middleBuffer,INDICATOR_DATA);
+    SetIndexBuffer(4,bb_.lowerBuffer,INDICATOR_DATA);
     SetIndexBuffer(5,wpr_.dataBuffer,INDICATOR_DATA);
     SetIndexBuffer(6,wpr_.colorBuffer,INDICATOR_COLOR_INDEX);
     SetIndexBuffer(7,rsi_.dataBuffer,INDICATOR_DATA);
@@ -240,6 +251,7 @@ int OnInit()
     SetIndexBuffer(9,cci_.dataBuffer,INDICATOR_DATA);
     SetIndexBuffer(10,cci_.colorBuffer,INDICATOR_COLOR_INDEX);
     
+
     controlWindow_.SetListener(parameters_);
     controlWindow_.OnInitEvent();
     if (!controlWindow_.CreateTradePanel())
@@ -338,24 +350,32 @@ void OnChartEvent(const int id,
 //+------------------------------------------------------------------+
 //| Custom indicator iteration function                              |
 //+------------------------------------------------------------------+
-int OnCalculate(const int rates_total,
-                const int prev_calculated,
-                const int begin,
-                const double &price[])
+int OnCalculate (const int rates_total,      // size of input time series 
+                 const int prev_calculated,  // bars handled in previous call 
+                 const datetime& time[],     // Time 
+                 const double& open[],       // Open 
+                 const double& high[],       // High 
+                 const double& low[],        // Low 
+                 const double& close[],      // Close 
+                 const long& tick_volume[],  // Tick Volume 
+                 const long& volume[],       // Real Volume 
+                 const int& spread[]         // Spread 
+   )
+// int OnCalculate(const int rates_total,
+//                 const int prev_calculated,
+//                 const int begin,
+//                 const double &price[])
   {
-  // ::Print(__FUNCTION__);
-  int bbTotal = bb_.calculateAndCopy(rates_total, prev_calculated,
-                          begin, bbUpperBuffer_, bbMiddleBuffer_, 
-                          bbLowerBuffer_);
+  int bbTotal = bb_.calculateAndCopy(rates_total, prev_calculated);
 
   int wprPrevious = wpr_.getPreviouslyCalculated();
-  int wprTotal = wpr_.calculateAndCopy(rates_total, prev_calculated, begin);
+  int wprTotal = wpr_.calculateAndCopy(rates_total, prev_calculated);
 
   int rsiPrevious = rsi_.getPreviouslyCalculated();
-  int rsiTotal = rsi_.calculateAndCopy(rates_total, prev_calculated, begin);
+  int rsiTotal = rsi_.calculateAndCopy(rates_total, prev_calculated);
 
   int cciPrevious = cci_.getPreviouslyCalculated();
-  int cciTotal = cci_.calculateAndCopy(rates_total, prev_calculated, begin);
+  int cciTotal = cci_.calculateAndCopy(rates_total, prev_calculated);
 
   int previous = MathMin(prev_calculated, 
                     MathMin(wprPrevious, 
@@ -364,58 +384,101 @@ int OnCalculate(const int rates_total,
 
   int itm = 0;
   int otm = 0;
-  const int firstCalculated = calculated - previous - 1;
-  for (int i = firstCalculated; i >= 0; --i)
+  // const int firstCalculated = calculated - previous - 1;
+
+  // csv file
+  string filename;
+  StringConcatenate(filename, previous, "-", calculated, ".csv");
+  CFileTxt file;
+  file.Open(filename, FILE_WRITE);
+  // file.Open(TimeToString(TimeCurrent()), FILE_WRITE);
+  file.WriteString("i\ttime\titm\totm\talert\tclose\n");
+
+  // run from oldest to newest (all arrays are indexed normally)
+  for (int i = previous; i < calculated; ++i)
   {
-    // filter alerts
-    if (wpr_.colorBuffer[i] > 0 &&
-        wpr_.colorBuffer[i] == rsi_.colorBuffer[i] &&
-        wpr_.colorBuffer[i] == cci_.colorBuffer[i])
+    // MqlDateTime dateTime; 
+    // TimeToStruct(time[i], dateTime);
+    // if (dateTime.hour > 12 && dateTime.hour < 21)
     {
-      alertColorBuffer_[i] = wpr_.colorBuffer[i] - 1;
-      alertPriceBuffer_[i] = price[i];
-    }
-    else 
-    {
-      alertPriceBuffer_[i] = 0;
+      Signal wprSignal = wpr_.getSignal(i);
+      Signal rsiSignal = rsi_.getSignal(i);
+      Signal cciSignal = cci_.getSignal(i);
+      bool bbAcceptsSell = bb_.acceptsSell(close[i], i);
+      bool bbAcceptsBuy = bb_.acceptsBuy(close[i], i);
+      // filter alerts
+      if (wprSignal != SIGNAL_NONE &&
+          wprSignal == rsiSignal &&
+          wprSignal == cciSignal)
+      {
+        if (wprSignal == SIGNAL_BUY && bbAcceptsBuy)
+        {
+          alertColorBuffer_[i] = 0;
+          alertPriceBuffer_[i] = close[i];
+        }
+        if (wprSignal == SIGNAL_SELL && bbAcceptsSell)
+        {
+          alertColorBuffer_[i] = 1;
+          alertPriceBuffer_[i] = close[i];
+        }
+      }
+      else 
+      {
+        alertPriceBuffer_[i] = 0;
+      }
     }
 
     // check success
-    if (i < rates_total - 1 && alertPriceBuffer_[i+1] != 0)
+    if (i > 0 && alertPriceBuffer_[i-1] != 0)
     {
-      ::Print(__FUNCTION__, " > i = ", i, 
-                             ", otm = ", otm, 
-                             ", sell = ", alertColorBuffer_[i+1], 
-                             ", diff = ", price[i+1] - price[i], 
-                             ", price[i+1] = ", price[i+1], 
-                             ", price[i] = ", price[i]);
-      if (alertColorBuffer_[i+1] == 0)
+      string dir = "-";
+      if (alertColorBuffer_[i-1] == 0)
       {
-        if (price[i+1] < price[i])
+        if (close[i-1] < close[i])
         {
           ++itm;
+          dir = "^";
         }
         else
         {
           ++otm;
+          dir = "v";
         }
       }
       else
       {
-        if (price[i+1] > price[i])
+        if (close[i-1] > close[i])
         {
           ++itm;
+          dir = "v";
         }
         else
         {
           ++otm;
+          dir = "^";
         }
+      // ::Print(__FUNCTION__, " > i = ", i, 
+      //                        ", itm = ", itm, 
+      //                        ", otm = ", otm, 
+      //                        ", sell = ", alertColorBuffer_[i+1], 
+      //                        ", dir = ", dir, 
+      //                        ", close[i+1] = ", close[i+1], 
+      //                        ", close[i] = ", close[i]);
       }
     }
+    string csvLine;
+    StringConcatenate(csvLine, i, "\t", time[i], "\t", itm, "\t", otm , "\t", 
+                      (alertPriceBuffer_[i] == 0) ? "-" : alertColorBuffer_[i] ? "v" : "^",
+                      "\t", close[i], "\n");
+    file.WriteString(csvLine);
   }
-  ::Print(__FUNCTION__, " > itm = ", itm, ", otm = ", otm,
-                        " (",firstCalculated,",0)");
-
+  file.Close();
+  if (previous < calculated)
+  {
+    ::Print(__FUNCTION__, " > itm = ", itm, ", otm = ", otm,
+                        " (",previous,",",calculated,")");
+  }
+  
   return MathMin(wprTotal, MathMin(rsiTotal, MathMin(cciTotal, bbTotal)));
   }
 

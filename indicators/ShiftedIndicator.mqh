@@ -9,6 +9,13 @@
 //+------------------------------------------------------------------+
 //|                                                                  |
 //+------------------------------------------------------------------+
+enum Signal
+{
+  SIGNAL_NONE,
+  SIGNAL_BUY,
+  SIGNAL_SELL
+};
+
 class ShiftedIndicator
   {
 private:
@@ -35,10 +42,12 @@ public:
                      ShiftedIndicator();
   virtual           ~ShiftedIndicator();
 
-  int               getHandle() const;
+  int                getHandle() const;
   void               setHandle(int handle);
   void               releaseHandle();
 
+  bool               isEnabled() const;
+  void               setEnabled(bool enabled);
   void               setPeriod(int period);
   void               setValueRange(double min, double max);
   void               setDrawRange(double min, double max);
@@ -49,8 +58,9 @@ public:
   int                getPreviouslyCalculated() const;
 
   int                calculateAndCopy(int rates_total, 
-                                      int prev_calculated, 
-                                      int begin);
+                                      int prev_calculated);
+
+  Signal             getSignal(int index);
   };
 //+------------------------------------------------------------------+
 //|                                                                  |
@@ -96,6 +106,20 @@ void ShiftedIndicator::releaseHandle()
 }
 
 //+------------------------------------------------------------------+
+bool ShiftedIndicator::isEnabled() const
+{
+  return enabled_;
+}
+
+void ShiftedIndicator::setEnabled(bool enabled)
+{
+  if (enabled_ != enabled)
+  {
+    enabled_ = enabled;
+    redraw();
+  }
+}
+
 void ShiftedIndicator::setPeriod(int period)
 {
   period_ = period;
@@ -148,7 +172,7 @@ int ShiftedIndicator::getPreviouslyCalculated()const
   return previouslyCalculated_;
 }
 
-int ShiftedIndicator::calculateAndCopy(int rates_total, int prev_calculated, int begin)
+int ShiftedIndicator::calculateAndCopy(int rates_total, int prev_calculated)
   {  
   if (rates_total == prev_calculated && prev_calculated == previouslyCalculated_)
   {
@@ -196,3 +220,16 @@ int ShiftedIndicator::calculateAndCopy(int rates_total, int prev_calculated, int
   return rates_total;
   }
 
+Signal ShiftedIndicator::getSignal(int index)
+{
+  switch ((int)colorBuffer[index])
+  {
+    case 1:
+      return SIGNAL_BUY;
+    case 2:
+      return SIGNAL_SELL;
+    case 0:
+    default:
+      return SIGNAL_NONE;
+  }
+}

@@ -133,13 +133,17 @@ const int CCI_RANGE_RIGHT_START_VALUE = 95;
 //+------------------------------------------------------------------+
 enum ControlWindowChange
 {
+  CWC_WPR_ENABLED,
   CWC_WPR_PERIOD,
   CWC_WPR_THRESHOLD,
+  CWC_RSI_ENABLED,
   CWC_RSI_PERIOD,
   CWC_RSI_THRESHOLD,
+  CWC_CCI_ENABLED,
   CWC_CCI_PERIOD,
   CWC_CCI_THRESHOLD,
-  CWC_BB
+  CWC_BB_ENABLED,
+  CWC_BB_PARAMETERS
 };
 //+------------------------------------------------------------------+
 class IControlWindowListener
@@ -303,27 +307,31 @@ void CControlWindow::OnEvent(const int id,const long &lparam,const double &dpara
          bbPeriodSpinEdit_.SpinEditState(bbEnableCheckbox_.CheckButtonState());
          bbShiftSpinEdit_.SpinEditState(bbEnableCheckbox_.CheckButtonState());
          bbDeviationSpinEdit_.SpinEditState(bbEnableCheckbox_.CheckButtonState());
+         NotifyWindowChanged(CWC_BB_ENABLED);
         }
       if(lparam==wprEnableCheckbox_.Id())
         {
          wprPeriodSpinEdit_.SpinEditState(wprEnableCheckbox_.CheckButtonState());
          wprRangeSlider_.SliderState(wprEnableCheckbox_.CheckButtonState());
+         NotifyWindowChanged(CWC_WPR_ENABLED);
         }
       if(lparam==rsiEnableCheckbox_.Id())
         {
          rsiPeriodSpinEdit_.SpinEditState(rsiEnableCheckbox_.CheckButtonState());
          rsiRangeSlider_.SliderState(rsiEnableCheckbox_.CheckButtonState());
+         NotifyWindowChanged(CWC_RSI_ENABLED);
         }
       if(lparam==cciEnableCheckbox_.Id())
         {
          cciPeriodSpinEdit_.SpinEditState(cciEnableCheckbox_.CheckButtonState());
          cciRangeSlider_.SliderState(cciEnableCheckbox_.CheckButtonState());
+         NotifyWindowChanged(CWC_CCI_ENABLED);
         }
      }
     if(lparam==bbPeriodSpinEdit_.Id() || lparam==bbShiftSpinEdit_.Id() || lparam==bbDeviationSpinEdit_.Id())
     {
       ::Print(__FUNCTION__," > id: ",id,"; lparam: ",lparam,"; dparam: ",dparam,"; sparam: ",sparam);
-      NotifyWindowChanged(CWC_BB);
+      NotifyWindowChanged(CWC_BB_PARAMETERS);
     }
     if(lparam==wprPeriodSpinEdit_.Id())
     {

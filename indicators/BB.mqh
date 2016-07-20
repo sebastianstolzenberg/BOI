@@ -21,17 +21,23 @@ private:
   int                previouslyCalculated_;
 
 public:
+  double             upperBuffer[];
+  double             middleBuffer[];
+  double             lowerBuffer[];
+
                      BB();
                     ~BB();
 
   bool               configure(int period, int shift, double deviation);
 
+  bool               isEnabled() const;
+  void               setEnabled(bool enabled);
+
+  bool               acceptsSell(double value, int index);
+  bool               acceptsBuy(double value, int index);
+
   int                calculateAndCopy(int rates_total, 
-                                      int prev_calculated, 
-                                      int begin,
-                                      double& upperBuffer[],
-                                      double& middleBuffer[],
-                                      double& lowerBuffer[]);
+                                      int prev_calculated);
 
   void               redraw();
   };
@@ -77,8 +83,32 @@ bool BB::configure(int period, int shift, double deviation)
   return handle_ != INVALID_HANDLE;
   }
 
-int BB::calculateAndCopy(int rates_total, int prev_calculated, int begin, 
-                         double& upperBuffer[], double& middleBuffer[], double& lowerBuffer[])
+bool BB::isEnabled() const
+{
+  return enabled_;
+}
+
+void BB::setEnabled(bool enabled)
+{
+  ::Print(__FUNCTION__, " > enabled = ", enabled);
+  if (enabled_ != enabled)
+  {
+    enabled_ = enabled;
+    redraw();
+  }
+}
+
+bool BB::acceptsSell(double value, int index)
+{
+  return !enabled_ || value > upperBuffer[index];
+}
+
+bool BB::acceptsBuy(double value, int index)
+{
+  return !enabled_ || value < lowerBuffer[index];
+}
+
+int BB::calculateAndCopy(int rates_total, int prev_calculated)
   {  
   if (rates_total == prev_calculated && prev_calculated == previouslyCalculated_)
   {
@@ -116,6 +146,6 @@ int BB::calculateAndCopy(int rates_total, int prev_calculated, int begin,
   }
 
 void BB::redraw()
-{
+  {
   previouslyCalculated_ = 0;
-}
+  }
