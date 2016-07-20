@@ -1,46 +1,46 @@
 //+------------------------------------------------------------------+
-//|                                                          CCI.mqh |
+//|                                                          MFI.mqh |
 //+------------------------------------------------------------------+
 #property copyright "Sebastian Stolzenberg"
 #property version   "1.00"
 
 #include "ShiftedIndicator.mqh"
 //+------------------------------------------------------------------+
-const double CCI_MININMUM = -140;
-const double CCI_MAXIMUM = 140;
+const double MFI_MININMUM = 0;
+const double MFI_MAXIMUM = 100;
 
 //+------------------------------------------------------------------+
 //|                                                                  |
 //+------------------------------------------------------------------+
-class CCI : public ShiftedIndicator
+class MFI : public ShiftedIndicator
   {
 public:
-                     CCI();
-                    ~CCI();
+                     MFI();
+                    ~MFI();
 
   bool               configure(int period);
   };
 //+------------------------------------------------------------------+
 //|                                                                  |
 //+------------------------------------------------------------------+
-CCI::CCI()
+MFI::MFI()
   {
-    setValueRange(CCI_MININMUM, CCI_MAXIMUM);
-    setThresholds(CCI_MAXIMUM, CCI_MININMUM);
+    setValueRange(MFI_MININMUM, MFI_MAXIMUM);
+    setThresholds(MFI_MAXIMUM, MFI_MININMUM);
   }
 //+------------------------------------------------------------------+
 //|                                                                  |
 //+------------------------------------------------------------------+
-CCI::~CCI()
+MFI::~MFI()
   {
   }
 //+------------------------------------------------------------------+
-bool CCI::configure(int period)
+bool MFI::configure(int period)
   {
   // ::Print(__FUNCTION__, " > period = ", period);
   
   setPeriod(period);
-  setHandle(iCCI("", Period(), period, PRICE_CLOSE));
+  setHandle(iMFI("", Period(), period, VOLUME_REAL));
 
   return getHandle() != INVALID_HANDLE;
   }

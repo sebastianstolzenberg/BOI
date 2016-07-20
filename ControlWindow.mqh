@@ -36,7 +36,7 @@ const color THUMB_COLOR_PRESSED = clrSilver;
 
 // window size
 const int WINDOW_WIDTH = 306;
-const int WINDOW_HEIGHT = 200;
+const int WINDOW_HEIGHT = 240;
 
 // general constants for indicators
 const int INDICATOR_X_OFFSET = 5;
@@ -89,7 +89,7 @@ const int WPR_PERIOD_MIN_VALUE = 1;
 const int WPR_PERIOD_MAX_VALUE = 100;
 const int WPR_PERIOD_STEP_VALUE = 1;
 const int WPR_PERIOD_DIGITS = 0;
-const int WPR_PERIOD_START_VALUE = 2;
+const int WPR_PERIOD_START_VALUE = 1;
 const int WPR_RANGE_MIN_VALUE = -100;
 const int WPR_RANGE_MAX_VALUE = 0;
 const int WPR_RANGE_STEP_VALUE = 1;
@@ -122,13 +122,28 @@ const int CCI_PERIOD_MAX_VALUE = 100;
 const int CCI_PERIOD_STEP_VALUE = 1;
 const int CCI_PERIOD_DIGITS = 0;
 const int CCI_PERIOD_START_VALUE = 3;
-const int CCI_RANGE_MIN_VALUE = -100;
-const int CCI_RANGE_MAX_VALUE = 100;
+const int CCI_RANGE_MIN_VALUE = -140;
+const int CCI_RANGE_MAX_VALUE = 140;
 const int CCI_RANGE_STEP_VALUE = 1;
 const int CCI_RANGE_DIGITS = 0;
 const int CCI_RANGE_LEFT_START_VALUE = -95;
 const int CCI_RANGE_RIGHT_START_VALUE = 95;
 
+// MFI control constants
+const bool MFI_DEFAULT_STATE = true;
+const int MFI_X = INDICATOR_X_OFFSET;
+const int MFI_Y = CCI_Y + INDICATOR_RANGE_SLIDER_HEIGHT;
+const int MFI_PERIOD_MIN_VALUE = 1;
+const int MFI_PERIOD_MAX_VALUE = 100;
+const int MFI_PERIOD_STEP_VALUE = 1;
+const int MFI_PERIOD_DIGITS = 0;
+const int MFI_PERIOD_START_VALUE = 3;
+const int MFI_RANGE_MIN_VALUE = 0;
+const int MFI_RANGE_MAX_VALUE = 100;
+const int MFI_RANGE_STEP_VALUE = 1;
+const int MFI_RANGE_DIGITS = 0;
+const int MFI_RANGE_LEFT_START_VALUE = 5;
+const int MFI_RANGE_RIGHT_START_VALUE = 95;
 
 //+------------------------------------------------------------------+
 enum ControlWindowChange
@@ -142,6 +157,9 @@ enum ControlWindowChange
   CWC_CCI_ENABLED,
   CWC_CCI_PERIOD,
   CWC_CCI_THRESHOLD,
+  CWC_MFI_ENABLED,
+  CWC_MFI_PERIOD,
+  CWC_MFI_THRESHOLD,
   CWC_BB_ENABLED,
   CWC_BB_PARAMETERS
 };
@@ -184,6 +202,11 @@ private:
    CSpinEdit         cciPeriodSpinEdit_;
    CDualSlider       cciRangeSlider_;
 
+   //--- MFI controls
+   CCheckBox         mfiEnableCheckbox_;
+   CSpinEdit         mfiPeriodSpinEdit_;
+   CDualSlider       mfiRangeSlider_;
+
 public:
                      CControlWindow();
                     ~CControlWindow();
@@ -222,6 +245,12 @@ public:
    double            GetCciLowerThreshold();
    double            GetCciUpperThreshold();
 
+   //--- MFI parameters
+   bool              IsMfiEnabled();
+   int               GetMfiPeriod();
+   double            GetMfiLowerThreshold();
+   double            GetMfiUpperThreshold();
+
 protected:
    //--- Chart event handler
    virtual void      OnEvent(const int id,const long &lparam,const double &dparam,const string &sparam);
@@ -237,6 +266,7 @@ private:
    bool              CreateWprControls();
    bool              CreateRsiControls();
    bool              CreateCciControls();
+   bool              CreateMfiControls();
 
    bool              CreateCheckBox(CCheckBox& checkBox, const string label,
                                     bool value, int x, int y);
@@ -327,6 +357,12 @@ void CControlWindow::OnEvent(const int id,const long &lparam,const double &dpara
          cciRangeSlider_.SliderState(cciEnableCheckbox_.CheckButtonState());
          NotifyWindowChanged(CWC_CCI_ENABLED);
         }
+      if(lparam==mfiEnableCheckbox_.Id())
+        {
+         mfiPeriodSpinEdit_.SpinEditState(mfiEnableCheckbox_.CheckButtonState());
+         mfiRangeSlider_.SliderState(mfiEnableCheckbox_.CheckButtonState());
+         NotifyWindowChanged(CWC_MFI_ENABLED);
+        }
      }
     if(lparam==bbPeriodSpinEdit_.Id() || lparam==bbShiftSpinEdit_.Id() || lparam==bbDeviationSpinEdit_.Id())
     {
@@ -362,6 +398,16 @@ void CControlWindow::OnEvent(const int id,const long &lparam,const double &dpara
     {
       ::Print(__FUNCTION__," > id: ",id,"; lparam: ",lparam,"; dparam: ",dparam,"; sparam: ",sparam);
       NotifyWindowChanged(CWC_CCI_THRESHOLD);
+    }
+    if(lparam==mfiPeriodSpinEdit_.Id())
+    {
+      ::Print(__FUNCTION__," > id: ",id,"; lparam: ",lparam,"; dparam: ",dparam,"; sparam: ",sparam);
+      NotifyWindowChanged(CWC_MFI_PERIOD);
+    }
+    if(lparam==mfiRangeSlider_.Id())
+    {
+      ::Print(__FUNCTION__," > id: ",id,"; lparam: ",lparam,"; dparam: ",dparam,"; sparam: ",sparam);
+      NotifyWindowChanged(CWC_MFI_THRESHOLD);
     }
   }
 //+------------------------------------------------------------------+
@@ -441,6 +487,25 @@ double CControlWindow::GetCciUpperThreshold()
   return cciRangeSlider_.GetRightValue();
 }
 //+------------------------------------------------------------------+
+//| Returns MFI parameters                                           |
+//+------------------------------------------------------------------+
+bool CControlWindow::IsMfiEnabled()
+{
+  return mfiEnableCheckbox_.CheckButtonState();
+}
+int CControlWindow::GetMfiPeriod()
+{
+  return (int)mfiPeriodSpinEdit_.GetValue();
+}
+double CControlWindow::GetMfiLowerThreshold()
+{
+  return mfiRangeSlider_.GetLeftValue();
+}
+double CControlWindow::GetMfiUpperThreshold()
+{
+  return mfiRangeSlider_.GetRightValue();
+}
+//+------------------------------------------------------------------+
 //| Creates the trading panel                                        |
 //+------------------------------------------------------------------+
 bool CControlWindow::CreateTradePanel(void)
@@ -456,6 +521,8 @@ bool CControlWindow::CreateTradePanel(void)
    if(!CreateRsiControls())
       return(false);
    if(!CreateCciControls())
+      return(false);
+   if(!CreateMfiControls())
       return(false);
 
 //--- Redrawing the chart
@@ -629,6 +696,41 @@ bool CControlWindow::CreateCciControls()
       CCI_RANGE_MAX_VALUE, CCI_RANGE_MIN_VALUE, CCI_RANGE_STEP_VALUE,
       CCI_RANGE_DIGITS, CCI_RANGE_LEFT_START_VALUE, RSI_RANGE_RIGHT_START_VALUE,
       cciEnableCheckbox_.CheckButtonState(), x, y))
+      return false;
+
+    return(true);
+  }
+//+------------------------------------------------------------------+
+//| Creates RSI controls   
+//+------------------------------------------------------------------+
+bool CControlWindow::CreateMfiControls()
+  {
+    const int baseX = window1_.X() + MFI_X;
+    const int baseY = window1_.Y() + MFI_Y;
+    
+
+    // checkbox
+    int x = baseX + INDICATOR_ENABLE_CHECKBOX_X_OFFSET;
+    int y = baseY + INDICATOR_ENABLE_CHECKBOX_Y_OFFSET;
+    if (!CreateCheckBox(mfiEnableCheckbox_, "MFI", MFI_DEFAULT_STATE, x, y))
+      return false;
+
+    // spin edit for period
+    x = baseX + INDICATOR_PERIOD_SPINEDIT_X_OFFSET;
+    y = baseY + INDICATOR_PERIOD_SPINEDIT_Y_OFFSET;
+    if (!CreateSpinEdit(mfiPeriodSpinEdit_, "Period", 
+          MFI_PERIOD_MAX_VALUE, MFI_PERIOD_MIN_VALUE, MFI_PERIOD_STEP_VALUE,
+          MFI_PERIOD_DIGITS, MFI_PERIOD_START_VALUE,
+          mfiEnableCheckbox_.CheckButtonState(), x, y))
+      return false;
+
+    // slider for trigger range setting
+    x = baseX + INDICATOR_RANGE_SLIDER_X_OFFSET;
+    y = baseY + INDICATOR_RANGE_SLIDER_Y_OFFSET;
+    if (!CreateDualSlider(mfiRangeSlider_, "Range", 
+      MFI_RANGE_MAX_VALUE, MFI_RANGE_MIN_VALUE, MFI_RANGE_STEP_VALUE,
+      MFI_RANGE_DIGITS, MFI_RANGE_LEFT_START_VALUE, RSI_RANGE_RIGHT_START_VALUE,
+      mfiEnableCheckbox_.CheckButtonState(), x, y))
       return false;
 
     return(true);

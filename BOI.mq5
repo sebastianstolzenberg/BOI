@@ -6,8 +6,8 @@
 
 // #property indicator_separate_window
 #property indicator_chart_window
-#property indicator_buffers 11
-#property indicator_plots   7
+#property indicator_buffers 13
+#property indicator_plots   8
 
 //--- set limit of the indicator values 
 // #property indicator_minimum -50 
@@ -48,14 +48,19 @@
 #property indicator_type7   DRAW_COLOR_ARROW
 #property indicator_width7  1
 
+#property indicator_label8  "MFI" 
+#property indicator_color8  clrWheat,clrLime,clrRed
+#property indicator_type8   DRAW_COLOR_ARROW
+#property indicator_width8  1
 
 #include <Files\FileTxt.mqh>
 
 #include "ControlWindow.mqh"
+#include "indicators/BB.mqh"
 #include "indicators/WPR.mqh"
 #include "indicators/RSI.mqh"
 #include "indicators/CCI.mqh"
-#include "indicators/BB.mqh"
+#include "indicators/MFI.mqh"
 
 const double INDICATOR_PLOT_HEIGHT = 0.02;
 const double INDICATOR_PLOT_SHIFT = 2;
@@ -74,10 +79,11 @@ double chartMax_;
 double wprMin_;
 double wprMax_;
 
+BB bb_;
 WPR wpr_;
 RSI rsi_;
 CCI cci_;
-BB bb_;
+MFI mfi_;
 CControlWindow controlWindow_;
 
 
@@ -135,6 +141,17 @@ public:
       case CWC_CCI_THRESHOLD:
         cci_.setThresholds(controlWindow_.GetCciUpperThreshold(),
                            controlWindow_.GetCciLowerThreshold());
+        break;
+
+      case CWC_MFI_ENABLED:
+        mfi_.setEnabled(controlWindow_.IsMfiEnabled());
+        break;
+      case CWC_MFI_PERIOD:
+        InitializeMfi();
+        break;
+      case CWC_MFI_THRESHOLD:
+        mfi_.setThresholds(controlWindow_.GetMfiUpperThreshold(),
+                           controlWindow_.GetMfiLowerThreshold());
         break;
 
       default:
@@ -220,6 +237,15 @@ bool InitializeCci()
   return cci_.configure(period);
   }
 
+bool InitializeMfi()
+  {
+  ::Print(__FUNCTION__);
+  mfi_.setThresholds(controlWindow_.GetMfiUpperThreshold(),
+                     controlWindow_.GetMfiLowerThreshold());
+  int period = controlWindow_.GetMfiPeriod();
+  return mfi_.configure(period);
+  }
+
 void RedrawChangedIndicators()
   {
   // int counted_bars=Bars(Symbol(),Period());
@@ -250,6 +276,8 @@ int OnInit()
     SetIndexBuffer(8,rsi_.colorBuffer,INDICATOR_COLOR_INDEX);
     SetIndexBuffer(9,cci_.dataBuffer,INDICATOR_DATA);
     SetIndexBuffer(10,cci_.colorBuffer,INDICATOR_COLOR_INDEX);
+    SetIndexBuffer(11,mfi_.dataBuffer,INDICATOR_DATA);
+    SetIndexBuffer(12,mfi_.colorBuffer,INDICATOR_COLOR_INDEX);
     
 
     controlWindow_.SetListener(parameters_);
@@ -281,6 +309,12 @@ int OnInit()
     if (!InitializeCci())
     {
       ::Print(__FUNCTION__," > Failed to create CCI indicator!");
+      return INIT_FAILED;
+    }
+
+    if (!InitializeMfi())
+    {
+      ::Print(__FUNCTION__," > Failed to create MFI indicator!");
       return INIT_FAILED;
     }
 
@@ -345,6 +379,10 @@ void OnChartEvent(const int id,
     double cciMin = rsiMin + indicatorShift;
     double cciMax = cciMin + indicatorHeight;
     cci_.setDrawRange(cciMin, cciMax);
+
+    double mfiMin = cciMin + indicatorShift;
+    double mfiMax = mfiMin + indicatorHeight;
+    mfi_.setDrawRange(mfiMin, mfiMax);
     }
   }
 //+------------------------------------------------------------------+
@@ -377,10 +415,19 @@ int OnCalculate (const int rates_total,      // size of input time series
   int cciPrevious = cci_.getPreviouslyCalculated();
   int cciTotal = cci_.calculateAndCopy(rates_total, prev_calculated);
 
+  int mfiPrevious = mfi_.getPreviouslyCalculated();
+  int mfiTotal = mfi_.calculateAndCopy(rates_total, prev_calculated);
+
   int previous = MathMin(prev_calculated, 
                     MathMin(wprPrevious, 
-                      MathMin(rsiPrevious, cciPrevious)));
-  int calculated = MathMin(wprTotal, MathMin(rsiTotal, MathMin(cciTotal, bbTotal))); 
+                      MathMin(rsiPrevious, 
+                        MathMin(cciPrevious, 
+                          mfiPrevious))));
+  int calculated = MathMin(bbTotal, 
+                    MathMin(wprTotal, 
+                      MathMin(rsiTotal, 
+                        MathMin(cciTotal, 
+                          mfiTotal)))); 
 
   int itm = 0;
   int otm = 0;
@@ -404,12 +451,14 @@ int OnCalculate (const int rates_total,      // size of input time series
       Signal wprSignal = wpr_.getSignal(i);
       Signal rsiSignal = rsi_.getSignal(i);
       Signal cciSignal = cci_.getSignal(i);
+      Signal mfiSignal = mfi_.getSignal(i);
       bool bbAcceptsSell = bb_.acceptsSell(close[i], i);
       bool bbAcceptsBuy = bb_.acceptsBuy(close[i], i);
       // filter alerts
       if (wprSignal != SIGNAL_NONE &&
           wprSignal == rsiSignal &&
-          wprSignal == cciSignal)
+          wprSignal == cciSignal &&
+          wprSignal == mfiSignal)
       {
         if (wprSignal == SIGNAL_BUY && bbAcceptsBuy)
         {
@@ -478,8 +527,8 @@ int OnCalculate (const int rates_total,      // size of input time series
     ::Print(__FUNCTION__, " > itm = ", itm, ", otm = ", otm,
                         " (",previous,",",calculated,")");
   }
-  
-  return MathMin(wprTotal, MathMin(rsiTotal, MathMin(cciTotal, bbTotal)));
+
+  return calculated;
   }
 
 void CheckSuccess()
