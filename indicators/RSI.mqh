@@ -1,8 +1,6 @@
 //+------------------------------------------------------------------+
 //|                                                          RSI.mqh |
 //+------------------------------------------------------------------+
-#property copyright "Sebastian Stolzenberg"
-#property version   "1.00"
 
 #include "ShiftedIndicator.mqh"
 //+------------------------------------------------------------------+
@@ -40,6 +38,7 @@ bool RSI::configure(int period)
   // ::Print(__FUNCTION__, " > period = ", period);
   
   setPeriod(period);
+  releaseHandle();
   setHandle(iRSI("", Period(), period, PRICE_CLOSE));
 
   return getHandle() != INVALID_HANDLE;

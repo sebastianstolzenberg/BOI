@@ -1,8 +1,6 @@
 //+------------------------------------------------------------------+
 //|                                                ControlWindow.mqh |
 //+------------------------------------------------------------------+
-#property copyright "Sebastian Stolzenberg"
-#property version   "1.00"
 
 #include <EasyAndFastGUI\Controls\WndEvents.mqh>
 
@@ -69,7 +67,7 @@ const int BB_PERIOD_MIN_VALUE = 1;
 const int BB_PERIOD_MAX_VALUE = 100;
 const int BB_PERIOD_STEP_VALUE = 1;
 const int BB_PERIOD_DIGITS = 0;
-const int BB_PERIOD_START_VALUE = 14;
+const int BB_PERIOD_START_VALUE = 20;
 const int BB_SHIFT_MIN_VALUE = 0;
 const int BB_SHIFT_MAX_VALUE = 100;
 const int BB_SHIFT_STEP_VALUE = 1;
@@ -79,7 +77,7 @@ const int BB_DEVIATION_MIN_VALUE = 0;
 const int BB_DEVIATION_MAX_VALUE = 100;
 const double BB_DEVIATION_STEP_VALUE = 0.1;
 const int BB_DEVIATION_DIGITS = 1;
-const int BB_DEVIATION_START_VALUE = 2;
+const double BB_DEVIATION_START_VALUE = 2.5;
 
 // WPR control constants
 const bool WPR_DEFAULT_STATE = true;

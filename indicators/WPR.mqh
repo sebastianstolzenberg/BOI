@@ -1,8 +1,6 @@
 //+------------------------------------------------------------------+
 //|                                                          WPR.mqh |
 //+------------------------------------------------------------------+
-#property copyright "Sebastian Stolzenberg"
-#property version   "1.00"
 
 #include "ShiftedIndicator.mqh"
 //+------------------------------------------------------------------+
@@ -40,6 +38,7 @@ bool WPR::configure(int period)
   // ::Print(__FUNCTION__, " > period = ", period);
   
   setPeriod(period);
+  releaseHandle();
   setHandle(iWPR("", Period(), period));
 
   return getHandle() != INVALID_HANDLE;

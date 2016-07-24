@@ -1,7 +1,7 @@
 //+------------------------------------------------------------------+
 //|                                                          BOI.mq5 |
 //+------------------------------------------------------------------+
-#property copyright "Sebastian Stolzenberg"
+#property copyright "SES"
 #property version   "1.00"
 
 // #property indicator_separate_window
@@ -14,7 +14,7 @@
 // #property indicator_maximum 50 
 
 #property indicator_label1  "Alert" 
-#property indicator_color1  clrAqua,clrRed
+#property indicator_color1  Gray,clrAqua,clrRed
 #property indicator_type1   DRAW_COLOR_ARROW
 #property indicator_width1  15
 
@@ -67,6 +67,15 @@ const double INDICATOR_PLOT_SHIFT = 2;
 // const double INDICATOR_PLOT_HEIGHT = 0.2;
 // const double INDICATOR_PLOT_SHIFT = 1.1;
 
+input int TIME_WINDOW_START = 9;
+input int TIME_WINDOW_END = 22;
+input double SIM_MONEY_START = 2000;
+input double SIM_WIN_RATE = 0.7;
+input double SIM_BET = 20;
+input int SIM_MAX_MARTINGALE_LEVEL = 4;
+
+#define ENABLE_CSV_DUMP
+
 //+------------------------------------------------------------------+
 //| Global Variables                                                 |
 //+------------------------------------------------------------------+
@@ -86,6 +95,7 @@ CCI cci_;
 MFI mfi_;
 CControlWindow controlWindow_;
 
+double simMoney_;
 
 class IndicatorParameters : public IControlWindowListener
 {
@@ -385,6 +395,108 @@ void OnChartEvent(const int id,
     mfi_.setDrawRange(mfiMin, mfiMax);
     }
   }
+
+Signal getSignal(const int index)
+{
+  Signal signal = SIGNAL_NONE;
+  if (alertPriceBuffer_[index] != 0)
+  {
+    signal = (Signal)alertColorBuffer_[index];
+  }
+  return signal;
+}
+
+enum Success
+{
+  SUCCESS_NO_SIGNAL,
+  SUCCESS_ITM,
+  SUCCESS_OTM,
+  SUCCESS_MARTINGALE 
+};
+Success wasSuccess(const int index, const double& price[])
+{
+  Success success = SUCCESS_NO_SIGNAL;
+  if (index > 0)
+  {
+    Signal signal = getSignal(index);
+    switch (signal)
+    {
+      case SIGNAL_BUY:
+        success = (price[index] < price[index+1]) ? SUCCESS_ITM : SUCCESS_OTM;
+        break;
+
+      case SIGNAL_SELL:
+        success = (price[index] > price[index+1]) ? SUCCESS_ITM : SUCCESS_OTM;
+        break;
+
+      case SIGNAL_NONE:
+      default:
+        break;
+    }
+  }
+  return success;
+}
+
+Signal processMartingale(const int index, const double& price[])
+{
+  Signal signal = SIGNAL_NONE;
+
+  if (index > 0)
+  {
+    Signal currentSignal = getSignal(index);
+
+    // only checks if martingale triggers a signal when there is no signal set yet
+    if (currentSignal == SIGNAL_NONE)
+    {
+      const int minIndex = MathMax(0, index - SIM_MAX_MARTINGALE_LEVEL);
+
+      int currentLevel = 0;
+      for (int i = index - 1; 
+           i >= minIndex && wasSuccess(i, price) == SUCCESS_OTM; 
+           --i)
+      {
+        ++currentLevel;
+      }
+
+      if (currentLevel > 0 && currentLevel < SIM_MAX_MARTINGALE_LEVEL)
+      {
+        signal = getSignal(index - 1);
+      }
+    }
+  }
+  return signal;
+}
+
+double simulateMoney(const int index, const double& price[])
+{
+  if (index == 0)
+  {
+    simMoney_ = SIM_MONEY_START;
+  }
+  else if (simMoney_ >= SIM_BET)
+  {
+    Success success = wasSuccess(index - 1, price);
+    if (success == SUCCESS_ITM)
+    {
+      // TODO other than plain martingale win
+      simMoney_ += SIM_BET * SIM_WIN_RATE;
+    }
+    else if (success == SUCCESS_OTM && getSignal(index) == SIGNAL_NONE)
+    {
+      // TODO proper martingale loss
+      simMoney_ -= SIM_BET * SIM_MAX_MARTINGALE_LEVEL;
+    }
+  }
+  return simMoney_;
+}
+
+bool isInTimeWindow(datetime time)
+{
+  MqlDateTime dateTime; 
+  TimeToStruct(time, dateTime);
+  return (dateTime.hour >= TIME_WINDOW_START && dateTime.hour < TIME_WINDOW_END);
+}
+
 //+------------------------------------------------------------------+
 //| Custom indicator iteration function                              |
 //+------------------------------------------------------------------+
@@ -433,99 +545,91 @@ int OnCalculate (const int rates_total,      // size of input time series
   int otm = 0;
   // const int firstCalculated = calculated - previous - 1;
 
+#ifdef ENABLE_CSV_DUMP
   // csv file
   string filename;
   StringConcatenate(filename, previous, "-", calculated, ".csv");
   CFileTxt file;
   file.Open(filename, FILE_WRITE);
-  // file.Open(TimeToString(TimeCurrent()), FILE_WRITE);
-  file.WriteString("i\ttime\titm\totm\talert\tclose\n");
+  file.WriteString("i\ttime\titm\totm\tsignal\tmoney\tclose\n");
+#endif
 
   // run from oldest to newest (all arrays are indexed normally)
   for (int i = previous; i < calculated; ++i)
   {
-    // MqlDateTime dateTime; 
-    // TimeToStruct(time[i], dateTime);
-    // if (dateTime.hour > 12 && dateTime.hour < 21)
+    Signal wprSignal = wpr_.getSignal(i);
+    Signal rsiSignal = rsi_.getSignal(i);
+    Signal cciSignal = cci_.getSignal(i);
+    Signal mfiSignal = mfi_.getSignal(i);
+    bool bbAcceptsSell = bb_.acceptsSell(close[i], i);
+    bool bbAcceptsBuy = bb_.acceptsBuy(close[i], i);
+    // filter alerts
+    if (isInTimeWindow(time[i]) &&
+        wprSignal != SIGNAL_NONE &&
+        wprSignal == rsiSignal &&
+        wprSignal == cciSignal &&
+        wprSignal == mfiSignal &&
+        ((bbAcceptsBuy && wprSignal == SIGNAL_BUY) || 
+         (bbAcceptsSell && wprSignal == SIGNAL_SELL)))
     {
-      Signal wprSignal = wpr_.getSignal(i);
-      Signal rsiSignal = rsi_.getSignal(i);
-      Signal cciSignal = cci_.getSignal(i);
-      Signal mfiSignal = mfi_.getSignal(i);
-      bool bbAcceptsSell = bb_.acceptsSell(close[i], i);
-      bool bbAcceptsBuy = bb_.acceptsBuy(close[i], i);
-      // filter alerts
-      if (wprSignal != SIGNAL_NONE &&
-          wprSignal == rsiSignal &&
-          wprSignal == cciSignal &&
-          wprSignal == mfiSignal)
+      if (wprSignal == SIGNAL_BUY && bbAcceptsBuy)
       {
-        if (wprSignal == SIGNAL_BUY && bbAcceptsBuy)
-        {
-          alertColorBuffer_[i] = 0;
-          alertPriceBuffer_[i] = close[i];
-        }
-        if (wprSignal == SIGNAL_SELL && bbAcceptsSell)
-        {
-          alertColorBuffer_[i] = 1;
-          alertPriceBuffer_[i] = close[i];
-        }
+        alertColorBuffer_[i] = SIGNAL_BUY;
+        alertPriceBuffer_[i] = close[i];
       }
-      else 
+      if (wprSignal == SIGNAL_SELL && bbAcceptsSell)
+      {
+        alertColorBuffer_[i] = SIGNAL_SELL;
+        alertPriceBuffer_[i] = close[i];
+      }
+    }
+    else 
+    {
+      alertColorBuffer_[i] = processMartingale(i, close);
+      if ((Signal)alertColorBuffer_[i] != SIGNAL_NONE)
+      {
+        ::Print(__FUNCTION__, " > Martingale at ", time[i], " (", i, ")");
+        alertPriceBuffer_[i] = close[i];
+      }
+      else
       {
         alertPriceBuffer_[i] = 0;
       }
     }
 
     // check success
-    if (i > 0 && alertPriceBuffer_[i-1] != 0)
+    Success success = wasSuccess(i-1, close);
+    if (success == SUCCESS_ITM) ++itm;
+    if (success == SUCCESS_OTM && getSignal(i) == SIGNAL_NONE)
     {
-      string dir = "-";
-      if (alertColorBuffer_[i-1] == 0)
-      {
-        if (close[i-1] < close[i])
-        {
-          ++itm;
-          dir = "^";
-        }
-        else
-        {
-          ++otm;
-          dir = "v";
-        }
-      }
-      else
-      {
-        if (close[i-1] > close[i])
-        {
-          ++itm;
-          dir = "v";
-        }
-        else
-        {
-          ++otm;
-          dir = "^";
-        }
-      // ::Print(__FUNCTION__, " > i = ", i, 
+      ++otm;
+      ::Print(__FUNCTION__, " > OTM at ", time[i], " (", i, ")");
+    }
+
+    simulateMoney(i, close);
+     // ::Print(__FUNCTION__, " > i = ", i, 
       //                        ", itm = ", itm, 
       //                        ", otm = ", otm, 
       //                        ", sell = ", alertColorBuffer_[i+1], 
       //                        ", dir = ", dir, 
       //                        ", close[i+1] = ", close[i+1], 
       //                        ", close[i] = ", close[i]);
-      }
-    }
+
+#ifdef ENABLE_CSV_DUMP
     string csvLine;
     StringConcatenate(csvLine, i, "\t", time[i], "\t", itm, "\t", otm , "\t", 
-                      (alertPriceBuffer_[i] == 0) ? "-" : alertColorBuffer_[i] ? "v" : "^",
-                      "\t", close[i], "\n");
+                      (Signal)alertColorBuffer_[i], "\t", simMoney_, "\t", close[i], "\n");
     file.WriteString(csvLine);
+#endif
   }
+#ifdef ENABLE_CSV_DUMP
   file.Close();
+#endif
   if (previous < calculated)
   {
-    ::Print(__FUNCTION__, " > itm = ", itm, ", otm = ", otm,
+    ::Print(__FUNCTION__, " > itm = ", itm, ", otm = ", otm, ", money = ", simMoney_,
                         " (",previous,",",calculated,")");
+    Comment("itm = ", itm, ", otm = ", otm, "\n money = ", simMoney_);
   }
 
   return calculated;

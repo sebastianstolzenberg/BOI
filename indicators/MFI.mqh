@@ -1,8 +1,6 @@
 //+------------------------------------------------------------------+
 //|                                                          MFI.mqh |
 //+------------------------------------------------------------------+
-#property copyright "Sebastian Stolzenberg"
-#property version   "1.00"
 
 #include "ShiftedIndicator.mqh"
 //+------------------------------------------------------------------+
@@ -40,6 +38,7 @@ bool MFI::configure(int period)
   // ::Print(__FUNCTION__, " > period = ", period);
   
   setPeriod(period);
+  releaseHandle();
   setHandle(iMFI("", Period(), period, VOLUME_REAL));
 
   return getHandle() != INVALID_HANDLE;
